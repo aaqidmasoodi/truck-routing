@@ -8,6 +8,9 @@ from typing import Any
 
 import httpx
 from django.conf import settings
+from django.core.cache import cache
+
+CACHE_SECONDS = 24 * 60 * 60
 
 
 class GeocodingError(Exception):
@@ -42,10 +45,19 @@ def parse_places(payload: dict[str, Any]) -> list[Place]:
 
 
 def search_places(query: str, count: int = 5, client: httpx.Client | None = None) -> list[Place]:
+    key = f"places:{count}:{query.strip().lower()}"
+    cached: list[Place] | None = cache.get(key)
+    if cached is not None:
+        return cached
+
     if client is not None:
-        return _search(client, query, count)
-    with httpx.Client(timeout=settings.HTTP_TIMEOUT_SECONDS) as http:
-        return _search(http, query, count)
+        places = _search(client, query, count)
+    else:
+        with httpx.Client(timeout=settings.HTTP_TIMEOUT_SECONDS) as http:
+            places = _search(http, query, count)
+
+    cache.set(key, places, CACHE_SECONDS)
+    return places
 
 
 def _search(http: httpx.Client, query: str, count: int) -> list[Place]:

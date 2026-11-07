@@ -2,8 +2,15 @@ from collections.abc import Callable
 
 import httpx
 import pytest
+from django.core.cache import cache
 
 from routing.clients.geocoding import GeocodingError, Place, parse_places, search_places
+
+
+@pytest.fixture(autouse=True)
+def empty_cache() -> None:
+    cache.clear()
+
 
 DENVER = {
     "id": 5419384,
@@ -84,3 +91,27 @@ def test_network_failure_raises_geocoding_error() -> None:
 
     with pytest.raises(GeocodingError):
         search_places("Denver", client=fake_api(handler))
+
+
+def test_repeat_searches_are_served_from_cache() -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(200, json={"results": [DENVER]})
+
+    api = fake_api(handler)
+    search_places("Denver", client=api)
+    search_places("  denver ", client=api)
+
+    assert len(calls) == 1
+
+
+def test_failed_searches_are_not_cached() -> None:
+    responses = iter([httpx.Response(503), httpx.Response(200, json={"results": [DENVER]})])
+    api = fake_api(lambda request: next(responses))
+
+    with pytest.raises(GeocodingError):
+        search_places("Denver", client=api)
+
+    assert search_places("Denver", client=api)[0].name == "Denver"
