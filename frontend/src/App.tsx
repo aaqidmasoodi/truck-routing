@@ -25,7 +25,14 @@ function App() {
   }, [])
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.default',
+      }}
+    >
       <AppBar
         position="sticky"
         color="inherit"
@@ -43,15 +50,20 @@ function App() {
           />
         </Toolbar>
       </AppBar>
-      <Container sx={{ py: 4 }}>
+      <Container component="main" sx={{ py: 4, flexGrow: 1 }}>
         <TripPlanner />
-        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 3 }}>
+      </Container>
+      <Box
+        component="footer"
+        sx={{ bgcolor: 'm3.surfaceContainer', py: 2, px: 2, textAlign: 'center' }}
+      >
+        <Typography variant="caption" color="text.secondary">
           Routes by <Link href="https://project-osrm.org">OSRM</Link>, map data ©{' '}
           <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Link>.
           Places by <Link href="https://open-meteo.com">Open-Meteo</Link>, based on{' '}
           <Link href="https://www.geonames.org">GeoNames</Link>.
         </Typography>
-      </Container>
+      </Box>
     </Box>
   )
 }
