@@ -11,6 +11,7 @@ import httpx
 from django.conf import settings
 from django.core.cache import cache
 
+from .cache_keys import cache_key
 from .http import new_client
 
 logger = logging.getLogger(__name__)
@@ -50,7 +51,7 @@ def parse_places(payload: dict[str, Any]) -> list[Place]:
 
 
 def search_places(query: str, count: int = 5, client: httpx.Client | None = None) -> list[Place]:
-    key = f"places:{count}:{query.strip().lower()}"
+    key = cache_key("places", f"{count}:{query.strip().lower()}")
     cached: list[Place] | None = cache.get(key)
     if cached is not None:
         logger.debug("geocode cache hit for %r (%d places)", query, len(cached))
