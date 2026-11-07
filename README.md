@@ -42,6 +42,30 @@ for a short pause in typing before it asks, so a word is one request, not one pe
 
 Location data is based on [GeoNames](https://www.geonames.org).
 
+## Finding routes
+
+`POST /api/routes/` takes a start and destination and returns up to three driving routes
+from [OSRM](https://project-osrm.org), each with its distance, drive time and the points
+along the road. OSRM sends the shape as an encoded polyline, which `backend/routing/polyline.py`
+decodes. Results are cached for an hour.
+
+```bash
+curl -X POST localhost:8000/api/routes/ -H "Content-Type: application/json" \
+  -d '{"origin": {"latitude": 39.74, "longitude": -104.98},
+       "destination": {"latitude": 41.88, "longitude": -87.63}}'
+```
+
+If there's no road between the two places the API answers 404, and if OSRM is down, 502.
+
+Two things to know:
+
+- The public OSRM server only has a car profile, so it doesn't know about truck
+  restrictions such as low bridges or weight limits. Point `ROUTING_URL` at an OSRM server
+  with a truck profile to change that.
+- OSRM only returns alternatives it thinks are reasonable, so some trips get fewer than three.
+
+Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+
 ## How routes are ranked
 
 Each checkpoint covers a stretch of road, and that stretch takes the checkpoint's risk
