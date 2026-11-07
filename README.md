@@ -47,7 +47,8 @@ Location data is based on [GeoNames](https://www.geonames.org).
 `POST /api/routes/` takes a start and destination and returns up to three driving routes
 from [OSRM](https://project-osrm.org), each with its distance, drive time and the points
 along the road. OSRM sends the shape as an encoded polyline, which `backend/routing/polyline.py`
-decodes. Results are cached for an hour.
+decodes. Results are cached for an hour. It asks the OpenStreetMap-hosted OSRM server first
+and falls back to the OSRM project's demo server, since both are free and best effort.
 
 ```bash
 curl -X POST localhost:8000/api/routes/ -H "Content-Type: application/json" \
@@ -60,8 +61,8 @@ If there's no road between the two places the API answers 404, and if OSRM is do
 Two things to know:
 
 - The public OSRM server only has a car profile, so it doesn't know about truck
-  restrictions such as low bridges or weight limits. Point `ROUTING_URL` at an OSRM server
-  with a truck profile to change that.
+  restrictions such as low bridges or weight limits. Set `ROUTING_URLS` (comma separated)
+  to an OSRM server with a truck profile to change that.
 - OSRM only returns alternatives it thinks are reasonable, so some trips get fewer than three.
 
 Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
