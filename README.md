@@ -32,6 +32,16 @@ curl -X POST localhost:8000/api/checkpoint-risk/ \
 
 This returns the level for each condition, the overall level, and which conditions caused it.
 
+## Finding places
+
+Start and destination are looked up with the free
+[Open-Meteo geocoding API](https://open-meteo.com/en/docs/geocoding-api), which needs no
+API key. The backend wraps it at `GET /api/places/?q=denver`, caches each search for a day,
+and returns a 502 with a friendly message if the geocoder is down. The search field waits
+for a short pause in typing before it asks, so a word is one request, not one per letter.
+
+Location data is based on [GeoNames](https://www.geonames.org).
+
 ## How routes are ranked
 
 Each checkpoint covers a stretch of road, and that stretch takes the checkpoint's risk
