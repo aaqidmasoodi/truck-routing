@@ -84,6 +84,20 @@ checkpoint at the start, one at every spacing mark, and one at the destination
 `departure` is optional (now by default) and must be within the next 48 hours, since
 that's as far as the forecast reaches.
 
+## Weather at each checkpoint
+
+Forecasts come from the free [Open-Meteo forecast API](https://open-meteo.com/en/docs)
+(`backend/routing/clients/weather.py`). Every checkpoint gets the forecast for the hour
+the truck is due there, not the weather right now.
+
+- All checkpoints of all routes go out in one request (100 places per request), with
+  coordinates rounded to about 1 km so nearby checkpoints share a forecast.
+- Forecasts are cached per place for 30 minutes, so asking again only fetches new places.
+- Rain is `rain + showers` and snow is `snowfall`, both totals for the hour ending at each
+  timestamp, so a truck due at 14:20 gets the 14:00 to 15:00 hour. Wind is a snapshot, so it
+  uses the nearest hour. Units come back as mm and cm and are converted to inches here.
+- If Open-Meteo is down, routes still come back and the weather shows as unknown.
+
 ## How routes are ranked
 
 Each checkpoint covers a stretch of road, and that stretch takes the checkpoint's risk
