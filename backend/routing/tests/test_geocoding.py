@@ -1,4 +1,8 @@
-from routing.clients.geocoding import Place, parse_places
+from collections.abc import Callable
+
+import httpx
+
+from routing.clients.geocoding import Place, parse_places, search_places
 
 DENVER = {
     "id": 5419384,
@@ -29,3 +33,21 @@ def test_missing_region_is_left_out_of_the_label() -> None:
 
 def test_label_joins_name_region_and_country() -> None:
     assert parse_places({"results": [DENVER]})[0].label == "Denver, Colorado, United States"
+
+
+def fake_api(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_search_sends_the_query_and_returns_places() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"results": [DENVER]})
+
+    places = search_places("Denv", count=3, client=fake_api(handler))
+
+    assert [place.name for place in places] == ["Denver"]
+    assert seen[0].url.params["name"] == "Denv"
+    assert seen[0].url.params["count"] == "3"

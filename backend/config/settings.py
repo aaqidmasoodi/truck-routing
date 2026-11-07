@@ -151,3 +151,6 @@ LOGGING = {
         "routing": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
     },
 }
+
+GEOCODING_URL = os.environ.get("GEOCODING_URL", "https://geocoding-api.open-meteo.com/v1/search")
+HTTP_TIMEOUT_SECONDS = float(os.environ.get("HTTP_TIMEOUT_SECONDS", "10"))
