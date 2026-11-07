@@ -11,6 +11,8 @@ import httpx
 from django.conf import settings
 from django.core.cache import cache
 
+from .http import new_client
+
 logger = logging.getLogger(__name__)
 
 CACHE_SECONDS = 24 * 60 * 60
@@ -57,7 +59,7 @@ def search_places(query: str, count: int = 5, client: httpx.Client | None = None
     if client is not None:
         places = _search(client, query, count)
     else:
-        with httpx.Client(timeout=settings.HTTP_TIMEOUT_SECONDS) as http:
+        with new_client() as http:
             places = _search(http, query, count)
 
     cache.set(key, places, CACHE_SECONDS)
