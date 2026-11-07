@@ -155,3 +155,5 @@ LOGGING = {
 GEOCODING_URL = os.environ.get("GEOCODING_URL", "https://geocoding-api.open-meteo.com/v1/search")
 HTTP_TIMEOUT_SECONDS = float(os.environ.get("HTTP_TIMEOUT_SECONDS", "10"))
 HTTP_USER_AGENT = "truck-routing/0.1 (+https://github.com/aaqidmasoodi/truck-routing)"
+
+ROUTING_URL = os.environ.get("ROUTING_URL", "https://router.project-osrm.org/route/v1/driving")
