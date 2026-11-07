@@ -105,5 +105,7 @@ def why_ahead(best: RouteScore, other: RouteScore) -> str:
     if round(best.average_risk, 4) < round(other.average_risk, 4):
         return f"Lower average risk ({best.average_risk:.2f} vs {other.average_risk:.2f})"
     if round(best.duration_minutes, 2) < round(other.duration_minutes, 2):
-        return f"{_number(other.duration_minutes - best.duration_minutes)} min faster"
+        # Nobody plans a drive to a tenth of a minute.
+        saved = max(1, round(other.duration_minutes - best.duration_minutes))
+        return f"{saved} min faster"
     return "Same risk and time"

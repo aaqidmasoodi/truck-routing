@@ -117,6 +117,8 @@ def test_any_no_travel_miles_rank_below_severe_miles() -> None:
         (make("a", high=5), make("b", high=15), "10 fewer miles of High risk weather"),
         (make("a", avg=0.5), make("b", avg=1.25), "Lower average risk (0.50 vs 1.25)"),
         (make("a", minutes=50), make("b", minutes=65), "15 min faster"),
+        (make("a", minutes=150), make("b", minutes=152.7), "3 min faster"),
+        (make("a", minutes=150), make("b", minutes=150.2), "1 min faster"),
         (make("a"), make("b"), "Same risk and time"),
     ],
 )
