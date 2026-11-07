@@ -3,12 +3,15 @@
 Location data is based on GeoNames: https://www.geonames.org
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 from django.conf import settings
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 CACHE_SECONDS = 24 * 60 * 60
 
@@ -48,6 +51,7 @@ def search_places(query: str, count: int = 5, client: httpx.Client | None = None
     key = f"places:{count}:{query.strip().lower()}"
     cached: list[Place] | None = cache.get(key)
     if cached is not None:
+        logger.debug("geocode cache hit for %r (%d places)", query, len(cached))
         return cached
 
     if client is not None:
@@ -67,8 +71,13 @@ def _search(http: httpx.Client, query: str, count: int) -> list[Place]:
             params={"name": query, "count": count, "language": "en", "format": "json"},
         )
         response.raise_for_status()
-        return parse_places(response.json())
+        places = parse_places(response.json())
     except httpx.HTTPError as error:
+        logger.warning("geocoding %r failed: %s", query, error)
         raise GeocodingError(f"Geocoding request failed: {error}") from error
     except (ValueError, KeyError, TypeError) as error:
+        logger.warning("geocoding %r returned an unexpected response: %s", query, error)
         raise GeocodingError(f"Unexpected geocoding response: {error}") from error
+
+    logger.debug("geocoded %r -> %s", query, [place.label for place in places])
+    return places

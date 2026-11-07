@@ -115,3 +115,14 @@ def test_failed_searches_are_not_cached() -> None:
         search_places("Denver", client=api)
 
     assert search_places("Denver", client=api)[0].name == "Denver"
+
+
+def test_lookups_and_cache_hits_are_logged(caplog: pytest.LogCaptureFixture) -> None:
+    api = fake_api(lambda request: httpx.Response(200, json={"results": [DENVER]}))
+
+    with caplog.at_level("DEBUG", logger="routing.clients.geocoding"):
+        search_places("Denver", client=api)
+        search_places("Denver", client=api)
+
+    assert "geocoded 'Denver' -> ['Denver, Colorado, United States']" in caplog.text
+    assert "geocode cache hit for 'Denver'" in caplog.text
