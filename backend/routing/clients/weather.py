@@ -4,6 +4,7 @@ We ask for millimetres and centimetres and convert ourselves, so the units are n
 in doubt: rain comes back in mm per hour and snowfall in cm per hour.
 """
 
+import logging
 from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -19,6 +20,8 @@ from ..polyline import Point
 from ..risk import Conditions
 from .cache_keys import cache_key
 from .http import new_client
+
+logger = logging.getLogger(__name__)
 
 MM_PER_INCH = 25.4
 CM_PER_INCH = 2.54
@@ -104,6 +107,13 @@ def fetch_forecasts(points: Sequence[Point], client: httpx.Client | None = None)
     keys = {rounded(point): cache_key("forecast", f"{rounded(point)}") for point in points}
     known: dict[str, Forecast] = cache.get_many(list(keys.values()))
     missing = [place for place, key in keys.items() if key not in known]
+    logger.debug(
+        "forecasts for %d points: %d places, %d cached, %d to fetch",
+        len(points),
+        len(keys),
+        len(keys) - len(missing),
+        len(missing),
+    )
 
     if missing:
         if client is not None:
@@ -137,8 +147,10 @@ def _fetch_all(http: httpx.Client, points: Sequence[Point]) -> list[Forecast]:
             response.raise_for_status()
             found = parse_forecasts(response.json())
         except httpx.HTTPError as error:
+            logger.warning("forecast request for %d places failed: %s", len(chunk), error)
             raise WeatherError(f"Forecast request failed: {error}") from error
         except (ValueError, KeyError, TypeError) as error:
+            logger.warning("forecast response was not usable: %s", error)
             raise WeatherError(f"Unexpected forecast response: {error}") from error
         if len(found) != len(chunk):
             raise WeatherError(f"Asked for {len(chunk)} forecasts, got {len(found)}")

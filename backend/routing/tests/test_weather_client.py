@@ -222,3 +222,10 @@ def test_nearby_points_share_one_forecast() -> None:
 
     assert calls == [1]
     assert forecasts[0] is forecasts[1]
+
+
+def test_lookups_are_logged(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level("DEBUG", logger="routing.clients.weather"):
+        fetch_forecasts([(53.35, -6.26)] * 3, client=fake_api(echo_locations))
+
+    assert "forecasts for 3 points: 1 places, 0 cached, 1 to fetch" in caplog.text
