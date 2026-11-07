@@ -3,7 +3,8 @@ from datetime import UTC, datetime
 import pytest
 
 from routing.checkpoints import ScheduledCheckpoint
-from routing.planner import assess
+from routing.clients.routing import Route
+from routing.planner import assess, plan_route
 from routing.risk import Conditions, RiskLevel
 
 LEAVING = datetime(2026, 11, 9, 8, 0, tzinfo=UTC)
@@ -43,3 +44,27 @@ def test_missing_forecast_means_unknown_risk() -> None:
 def test_checkpoints_and_weather_must_line_up() -> None:
     with pytest.raises(ValueError):
         assess([checkpoint(0)], [CALM, CALM], weight_lb=20_000)
+
+
+ROUTE = Route("route-1", distance_miles=30, duration_minutes=40, points=[])
+SNOWY = Conditions(wind_mph=5, rain_in_per_hr=0, snow_in_per_hr=2.5)
+
+
+def test_route_score_counts_miles_per_level() -> None:
+    checkpoints = [checkpoint(0, 5), checkpoint(10, 10), checkpoint(20, 10), checkpoint(30, 5)]
+
+    planned = plan_route(ROUTE, assess(checkpoints, [CALM, GUSTY, SNOWY, CALM], 20_000))
+
+    assert planned.score.severe_miles == 20
+    assert planned.score.high_miles == 0
+    assert planned.score.duration_minutes == 40
+    assert planned.unknown_miles == 0
+
+
+def test_unknown_weather_is_counted_but_ranked_as_low() -> None:
+    checkpoints = [checkpoint(0, 5), checkpoint(10, 10), checkpoint(20, 5)]
+
+    planned = plan_route(ROUTE, assess(checkpoints, [CALM, None, None], 20_000))
+
+    assert planned.unknown_miles == 15
+    assert planned.score.average_risk == 0
