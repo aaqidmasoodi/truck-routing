@@ -1,3 +1,16 @@
+"""Weather risk levels for a single checkpoint.
+
+Thresholds come straight from the assessment brief:
+
+    Wind (mph)    Low < 25, Moderate 25-34, High 35-44, Severe 45-54, No Travel 55+
+    Rain (in/hr)  Low < 0.10, Moderate 0.10-0.25, High 0.25-0.50, Severe 0.50-1.00, No Travel > 1.00
+    Snow (in/hr)  Low < 0.5, Moderate 0.5-1.0, High 1.0-2.0, Severe 2.0-3.0, No Travel > 3.0
+
+Where two bands share an edge (rain at 0.25, for example) the value goes into the
+higher band, the same way wind works. The top of the Severe band is inclusive
+because the brief only says "more than" for No Travel.
+"""
+
 from enum import IntEnum
 
 
