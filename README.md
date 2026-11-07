@@ -5,6 +5,11 @@ Helps a truck driver pick the safest route based on weather, load weight and tra
 - `backend/`: Django + Django REST Framework API
 - `frontend/`: React + Vite + TypeScript + Material UI
 
+The UI follows Material 3. Colours come from Google's
+[material-color-utilities](https://github.com/material-foundation/material-color-utilities),
+generated from one seed colour in `frontend/src/colorScheme.ts`, and are mapped onto the
+Material UI theme in `frontend/src/theme.ts`.
+
 ## How risk is worked out
 
 Every checkpoint gets a risk level for wind, rain and snow using the thresholds from
