@@ -1,9 +1,14 @@
+import logging
+
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .risk import Conditions, RiskLevel, checkpoint_risk
 from .serializers import CheckpointRiskInput
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(["GET"])
@@ -23,7 +28,9 @@ def risk_levels(request: Request) -> Response:
 @api_view(["POST"])
 def score_checkpoint(request: Request) -> Response:
     form = CheckpointRiskInput(data=request.data)
-    form.is_valid(raise_exception=True)
+    if not form.is_valid():
+        logger.info("rejected checkpoint request: %s", form.errors)
+        return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
     data = form.validated_data
 
     risk = checkpoint_risk(

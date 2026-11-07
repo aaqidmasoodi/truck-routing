@@ -1,3 +1,4 @@
+import pytest
 from django.test import Client
 from django.urls import reverse
 
@@ -29,15 +30,19 @@ def test_checkpoint_risk_scores_the_worst_condition(client: Client) -> None:
     assert body["causes"] == ["wind"]
 
 
-def test_checkpoint_risk_rejects_bad_input(client: Client) -> None:
-    response = client.post(
-        reverse("checkpoint-risk"),
-        {"wind_mph": -5, "rain_in_per_hr": 0, "weight_lb": 20_000},
-        content_type="application/json",
-    )
+def test_checkpoint_risk_rejects_bad_input(
+    client: Client, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level("INFO", logger="routing.views"):
+        response = client.post(
+            reverse("checkpoint-risk"),
+            {"wind_mph": -5, "rain_in_per_hr": 0, "weight_lb": 20_000},
+            content_type="application/json",
+        )
 
     assert response.status_code == 400
     assert set(response.json()) == {"wind_mph", "snow_in_per_hr"}
+    assert "rejected checkpoint request" in caplog.text
 
 
 def test_checkpoint_risk_only_accepts_post(client: Client) -> None:
