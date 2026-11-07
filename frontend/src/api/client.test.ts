@@ -29,7 +29,20 @@ describe('findRoutes', () => {
     const [url, init] = fetch.mock.calls[0] ?? []
     expect(url).toBe('/api/routes/')
     expect(init?.method).toBe('POST')
-    expect(JSON.parse(String(init?.body))).toEqual({ origin: denver, destination: chicago })
+    expect(JSON.parse(String(init?.body))).toEqual({
+      origin: denver,
+      destination: chicago,
+      spacing_miles: 25,
+    })
+  })
+
+  it('sends the checkpoint spacing', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json([]))
+
+    await findRoutes(denver, chicago, 10)
+
+    const [, init] = fetch.mock.calls[0] ?? []
+    expect(JSON.parse(String(init?.body)).spacing_miles).toBe(10)
   })
 
   it("uses the server's message when there's no route", async () => {

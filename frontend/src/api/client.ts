@@ -16,12 +16,23 @@ export interface Coordinates {
   longitude: number
 }
 
+export interface Checkpoint {
+  latitude: number
+  longitude: number
+  mile: number
+  segment_miles: number
+  eta: string
+}
+
 export interface RouteOption {
   id: string
   distance_miles: number
   duration_minutes: number
   points: [number, number][]
+  checkpoints: Checkpoint[]
 }
+
+export type Spacing = 10 | 25 | 50
 
 export class ApiError extends Error {
   readonly status: number
@@ -53,10 +64,14 @@ export function searchPlaces(query: string, signal?: AbortSignal): Promise<Place
   return request(`/api/places/?${params}`, signal ? { signal } : {})
 }
 
-export function findRoutes(origin: Coordinates, destination: Coordinates): Promise<RouteOption[]> {
+export function findRoutes(
+  origin: Coordinates,
+  destination: Coordinates,
+  spacingMiles: Spacing = 25,
+): Promise<RouteOption[]> {
   return request('/api/routes/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ origin, destination }),
+    body: JSON.stringify({ origin, destination, spacing_miles: spacingMiles }),
   })
 }

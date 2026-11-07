@@ -4,8 +4,8 @@ import type { RouteOption } from '../api/client'
 import RouteOptions from './RouteOptions'
 
 const routes: RouteOption[] = [
-  { id: 'route-1', distance_miles: 1003.2, duration_minutes: 905.5, points: [] },
-  { id: 'route-2', distance_miles: 1040.7, duration_minutes: 880, points: [] },
+  { id: 'route-1', distance_miles: 1003.2, duration_minutes: 905.5, points: [], checkpoints: [] },
+  { id: 'route-2', distance_miles: 1040.7, duration_minutes: 880, points: [], checkpoints: [] },
 ]
 
 describe('RouteOptions', () => {

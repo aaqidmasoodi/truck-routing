@@ -49,8 +49,8 @@ describe('TripPlanner', () => {
   it('shows the routes it finds', async () => {
     fakeApi(() =>
       Response.json([
-        { id: 'route-1', distance_miles: 1003, duration_minutes: 905, points: [] },
-        { id: 'route-2', distance_miles: 1040, duration_minutes: 930, points: [] },
+        { id: 'route-1', distance_miles: 1003, duration_minutes: 905, points: [], checkpoints: [] },
+        { id: 'route-2', distance_miles: 1040, duration_minutes: 930, points: [], checkpoints: [] },
       ]),
     )
     render(<TripPlanner />)
