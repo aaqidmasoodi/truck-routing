@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
-from routing import views
+from routing import planner, views
 from routing.clients.routing import NoRouteFound, Route, RoutingError
 from routing.clients.weather import Forecast, WeatherError
 from routing.polyline import Point
@@ -26,7 +26,7 @@ def no_real_weather(monkeypatch: pytest.MonkeyPatch) -> None:
     def unavailable(points: list[Point]) -> list[Forecast]:
         raise WeatherError("not in tests")
 
-    monkeypatch.setattr(views, "fetch_forecasts", unavailable)
+    monkeypatch.setattr(planner, "fetch_forecasts", unavailable)
 
 
 def post(client: Client, body: dict[str, Any]) -> Any:
@@ -145,7 +145,7 @@ def test_checkpoints_carry_the_forecast_at_arrival(
         asked.append(points)
         return [hourly_forecast(wind=40) for _ in points]
 
-    monkeypatch.setattr(views, "fetch_forecasts", fake_forecasts)
+    monkeypatch.setattr(planner, "fetch_forecasts", fake_forecasts)
 
     checkpoints = post(client, {**TRIP, "spacing_miles": 50}).json()[0]["checkpoints"]
 
@@ -166,7 +166,7 @@ def test_weather_outage_still_returns_routes(
     def broken(points: list[Point]) -> list[Forecast]:
         raise WeatherError("down")
 
-    monkeypatch.setattr(views, "fetch_forecasts", broken)
+    monkeypatch.setattr(planner, "fetch_forecasts", broken)
 
     response = post(client, TRIP)
 
@@ -179,7 +179,7 @@ def test_arrivals_past_the_forecast_have_unknown_weather(
 ) -> None:
     monkeypatch.setattr(views, "find_routes", lambda origin, destination: [ROUTE])
     short = Forecast([int(timezone.now().timestamp()) + 3600], [5], [0], [0])
-    monkeypatch.setattr(views, "fetch_forecasts", lambda points: [short for _ in points])
+    monkeypatch.setattr(planner, "fetch_forecasts", lambda points: [short for _ in points])
 
     checkpoints = post(client, TRIP).json()[0]["checkpoints"]
 

@@ -2,9 +2,12 @@ from datetime import UTC, datetime
 
 import pytest
 
+from routing import planner
 from routing.checkpoints import ScheduledCheckpoint
 from routing.clients.routing import Route
-from routing.planner import PlannedRoute, assess, plan_route, recommend
+from routing.clients.weather import Forecast, WeatherError
+from routing.planner import PlannedRoute, assess, plan_route, plan_trip, recommend
+from routing.polyline import Point
 from routing.risk import Conditions, RiskLevel
 
 LEAVING = datetime(2026, 11, 9, 8, 0, tzinfo=UTC)
@@ -110,3 +113,55 @@ def test_no_travel_on_every_route_is_flagged() -> None:
 def test_nothing_to_recommend() -> None:
     with pytest.raises(ValueError):
         recommend([])
+
+
+def hourly(conditions: Conditions) -> Forecast:
+    start = int(LEAVING.timestamp()) - 3600
+    hours = list(range(start, start + 48 * 3600, 3600))
+    return Forecast(
+        times=hours,
+        wind_mph=[conditions.wind_mph] * len(hours),
+        rain_in_per_hr=[conditions.rain_in_per_hr] * len(hours),
+        snow_in_per_hr=[conditions.snow_in_per_hr] * len(hours),
+    )
+
+
+NORTH = [(53.0, -7.0), (53.5, -7.0)]  # about 35 miles
+NORTH_EAST = [(53.0, -7.0), (53.0, -6.9), (53.5, -6.9)]
+
+
+def test_plan_trip_puts_it_all_together(monkeypatch: pytest.MonkeyPatch) -> None:
+    routes = [
+        Route("route-1", distance_miles=35, duration_minutes=40, points=NORTH),
+        Route("route-2", distance_miles=40, duration_minutes=50, points=NORTH_EAST),
+    ]
+    monkeypatch.setattr(planner, "find_routes", lambda origin, destination: routes)
+    lookups: list[int] = []
+
+    def forecasts(points: list[Point]) -> list[Forecast]:
+        lookups.append(len(points))
+        # Storm along the straight road (longitude -7.0), calm on the detour.
+        return [hourly(GUSTY if lon == -7.0 else CALM) for _, lon in points]
+
+    monkeypatch.setattr(planner, "fetch_forecasts", forecasts)
+
+    plan = plan_trip(NORTH[0], NORTH[-1], 20_000, spacing_miles=10, departure=LEAVING)
+
+    assert len(lookups) == 1
+    assert [p.route.id for p in plan.routes] == ["route-2", "route-1"]
+    assert plan.routes[1].score.severe_miles == pytest.approx(35)
+    assert plan.reason.endswith("fewer miles of Severe weather")
+
+
+def test_plan_trip_survives_a_forecast_outage(monkeypatch: pytest.MonkeyPatch) -> None:
+    route = Route("route-1", distance_miles=35, duration_minutes=40, points=NORTH)
+    monkeypatch.setattr(planner, "find_routes", lambda origin, destination: [route])
+
+    def down(points: list[Point]) -> list[Forecast]:
+        raise WeatherError("down")
+
+    monkeypatch.setattr(planner, "fetch_forecasts", down)
+
+    plan = plan_trip(NORTH[0], NORTH[-1], 20_000, spacing_miles=10, departure=LEAVING)
+
+    assert plan.routes[0].unknown_miles == pytest.approx(35)

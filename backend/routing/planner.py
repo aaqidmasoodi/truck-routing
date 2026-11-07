@@ -1,12 +1,18 @@
 """Puts the pieces together: route options, checkpoints, weather and risk."""
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
-from .checkpoints import ScheduledCheckpoint
-from .clients.routing import Route
+from .checkpoints import ScheduledCheckpoint, checkpoints_for_route
+from .clients.routing import Route, find_routes
+from .clients.weather import WeatherError, fetch_forecasts
+from .polyline import Point
 from .ranking import RouteScore, Segment, rank_routes, score_route, why_ahead
 from .risk import CheckpointRisk, Conditions, RiskLevel, checkpoint_risk
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -79,3 +85,42 @@ def recommend(planned: Sequence[PlannedRoute]) -> TripPlan:
         reason=reason,
         safe_to_travel=best.score.no_travel_miles == 0,
     )
+
+
+def weather_at(checkpoints: Sequence[ScheduledCheckpoint]) -> list[Conditions | None]:
+    """The forecast at each checkpoint's arrival time, in the same order.
+
+    If the forecast service is down the routes are still worth showing, so every
+    checkpoint just gets unknown weather.
+    """
+    try:
+        forecasts = fetch_forecasts([(c.latitude, c.longitude) for c in checkpoints])
+    except WeatherError:
+        return [None] * len(checkpoints)
+    return [
+        forecast.at(checkpoint.eta)
+        for checkpoint, forecast in zip(checkpoints, forecasts, strict=True)
+    ]
+
+
+def plan_trip(
+    origin: Point,
+    destination: Point,
+    weight_lb: float,
+    spacing_miles: float,
+    departure: datetime,
+) -> TripPlan:
+    """Route options between two places, ranked safest first for this truck and time.
+
+    Raises the routing client's errors if no route can be found.
+    """
+    routes = find_routes(origin, destination)
+    per_route = [checkpoints_for_route(route, spacing_miles, departure) for route in routes]
+
+    # One forecast lookup for every checkpoint on every route.
+    weather = iter(weather_at([c for checkpoints in per_route for c in checkpoints]))
+    planned = [
+        plan_route(route, assess(checkpoints, [next(weather) for _ in checkpoints], weight_lb))
+        for route, checkpoints in zip(routes, per_route, strict=True)
+    ]
+    return recommend(planned)
