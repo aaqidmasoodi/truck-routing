@@ -67,6 +67,23 @@ Two things to know:
 
 Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
 
+## Checkpoints
+
+Weather is checked at points along each route rather than everywhere. The driver picks
+the spacing: every 10, 25 or 50 miles (`spacing_miles`, 25 by default). Each route gets a
+checkpoint at the start, one at every spacing mark, and one at the destination
+(`backend/routing/checkpoints.py`).
+
+- Distances along the route shape use the haversine formula. The decoded shape cuts a few
+  corners, so checkpoint miles are scaled to the road distance OSRM reports.
+- Each checkpoint covers half the road to its neighbours on either side, so the shares add
+  up to the whole route. Ranking uses this to count Severe and High miles.
+- Arrival times assume the route's average speed all the way. OSRM only gives a total
+  time, and this spreads the error evenly instead of letting it pile up at one end.
+
+`departure` is optional (now by default) and must be within the next 48 hours, since
+that's as far as the forecast reaches.
+
 ## How routes are ranked
 
 Each checkpoint covers a stretch of road, and that stretch takes the checkpoint's risk
