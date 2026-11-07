@@ -1,6 +1,8 @@
+from datetime import timedelta
 from typing import Any
 
 import pytest
+from django.utils import timezone
 
 from routing.serializers import PlanRequest
 
@@ -37,3 +39,20 @@ def test_bad_trips_say_what_is_wrong(change: dict[str, Any], field: str) -> None
 
     assert not form.is_valid()
     assert field in form.errors
+
+
+@pytest.mark.parametrize(
+    "departure",
+    ["not a date", "2020-01-01T08:00:00Z", "2999-01-01T08:00:00Z"],
+)
+def test_departure_must_be_soon(departure: str) -> None:
+    form = PlanRequest(data={**TRIP, "departure": departure})
+
+    assert not form.is_valid()
+    assert "departure" in form.errors
+
+
+def test_departure_in_the_next_two_days_is_fine() -> None:
+    soon = timezone.now() + timedelta(hours=30)
+
+    assert PlanRequest(data={**TRIP, "departure": soon.isoformat()}).is_valid()

@@ -36,9 +36,10 @@ class Coordinates(serializers.Serializer[Any]):
     longitude = serializers.FloatField(min_value=-180, max_value=180)
 
 
-class RouteRequest(serializers.Serializer[Any]):
+class PlanRequest(serializers.Serializer[Any]):
     origin = Coordinates()
     destination = Coordinates()
+    weight_lb = serializers.FloatField(min_value=1, max_value=200_000)
     spacing_miles = serializers.ChoiceField(choices=SPACINGS_MILES, default=25)
     departure = serializers.DateTimeField(required=False)
 
@@ -58,29 +59,10 @@ class RouteRequest(serializers.Serializer[Any]):
         return attrs
 
 
-class RouteSerializer(serializers.Serializer[Any]):
-    id = serializers.CharField()
-    distance_miles = serializers.FloatField()
-    duration_minutes = serializers.FloatField()
-    points = serializers.ListField(child=serializers.ListField(child=serializers.FloatField()))
-
-
-class CheckpointSerializer(serializers.Serializer[Any]):
-    latitude = serializers.FloatField()
-    longitude = serializers.FloatField()
-    mile = serializers.FloatField()
-    segment_miles = serializers.FloatField()
-    eta = serializers.DateTimeField()
-
-
 class WeatherSerializer(serializers.Serializer[Any]):
     wind_mph = serializers.FloatField()
     rain_in_per_hr = serializers.FloatField()
     snow_in_per_hr = serializers.FloatField()
-
-
-class PlanRequest(RouteRequest):
-    weight_lb = serializers.FloatField(min_value=1, max_value=200_000)
 
 
 # Trip plan responses
