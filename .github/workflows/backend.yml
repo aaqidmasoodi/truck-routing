@@ -1,0 +1,38 @@
+name: Backend
+
+on:
+  push:
+    branches: [main]
+    paths: [backend/**, .github/workflows/backend.yml]
+  pull_request:
+    paths: [backend/**, .github/workflows/backend.yml]
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/requirements*.txt
+      - run: uv pip install --system -r requirements-dev.txt
+      - name: Lint
+        run: ruff check --output-format=github .
+      - name: Format
+        run: ruff format --check .
+      - name: Type check
+        run: mypy .
+      - name: Tests
+        run: pytest --cov
