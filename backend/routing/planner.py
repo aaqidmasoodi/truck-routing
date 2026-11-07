@@ -39,6 +39,10 @@ class TripPlan:
     # False when even the best route runs into No Travel weather.
     safe_to_travel: bool
 
+    @property
+    def recommended(self) -> PlannedRoute:
+        return self.routes[0]
+
 
 def assess(
     checkpoints: Sequence[ScheduledCheckpoint],

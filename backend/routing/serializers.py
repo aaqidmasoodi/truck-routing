@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from .checkpoints import SPACINGS_MILES
+from .risk import RiskLevel
 
 # Weather forecasts are only useful for about two days ahead.
 FORECAST_HOURS = 48
@@ -80,3 +81,57 @@ class WeatherSerializer(serializers.Serializer[Any]):
 
 class PlanRequest(RouteRequest):
     weight_lb = serializers.FloatField(min_value=1, max_value=200_000)
+
+
+# Trip plan responses
+
+
+class RiskLevelField(serializers.Field[RiskLevel, Any, dict[str, Any], Any]):
+    """A risk level as {"value": 3, "label": "Severe"}, so the UI needn't know the names."""
+
+    def to_representation(self, value: RiskLevel) -> dict[str, Any]:
+        return {"value": value.value, "label": value.label}
+
+
+class RiskSerializer(serializers.Serializer[Any]):
+    level = RiskLevelField()
+    wind = RiskLevelField()
+    rain = RiskLevelField()
+    snow = RiskLevelField()
+    causes = serializers.ListField(child=serializers.CharField())
+
+
+class PlannedCheckpointSerializer(serializers.Serializer[Any]):
+    latitude = serializers.FloatField(source="checkpoint.latitude")
+    longitude = serializers.FloatField(source="checkpoint.longitude")
+    mile = serializers.FloatField(source="checkpoint.mile")
+    segment_miles = serializers.FloatField(source="checkpoint.segment_miles")
+    eta = serializers.DateTimeField(source="checkpoint.eta")
+    weather = WeatherSerializer(allow_null=True)
+    risk = RiskSerializer(allow_null=True)
+
+
+class RouteScoreSerializer(serializers.Serializer[Any]):
+    no_travel_miles = serializers.FloatField()
+    severe_miles = serializers.FloatField()
+    high_miles = serializers.FloatField()
+    average_risk = serializers.FloatField()
+
+
+class PlannedRouteSerializer(serializers.Serializer[Any]):
+    id = serializers.CharField(source="route.id")
+    distance_miles = serializers.FloatField(source="route.distance_miles")
+    duration_minutes = serializers.FloatField(source="route.duration_minutes")
+    points = serializers.ListField(
+        source="route.points", child=serializers.ListField(child=serializers.FloatField())
+    )
+    score = RouteScoreSerializer()
+    unknown_weather_miles = serializers.FloatField(source="unknown_miles")
+    checkpoints = PlannedCheckpointSerializer(many=True)
+
+
+class TripPlanSerializer(serializers.Serializer[Any]):
+    recommended_route_id = serializers.CharField(source="recommended.route.id")
+    reason = serializers.CharField()
+    safe_to_travel = serializers.BooleanField()
+    routes = PlannedRouteSerializer(many=True)
