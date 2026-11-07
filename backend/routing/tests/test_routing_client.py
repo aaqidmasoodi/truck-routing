@@ -3,7 +3,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from routing.clients.routing import find_routes, parse_routes
+from routing.clients.routing import NoRouteFound, RoutingError, find_routes, parse_routes
 
 # Two tiny routes in the shape OSRM returns them (geometries=polyline6).
 OSRM_RESPONSE = {
@@ -58,3 +58,45 @@ def test_find_routes_opens_its_own_client(monkeypatch: pytest.MonkeyPatch) -> No
     )
 
     assert len(find_routes((39.74, -104.98), (41.88, -87.63))) == 2
+
+
+DENVER, CHICAGO = (39.74, -104.98), (41.88, -87.63)
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(400, json={"code": "NoRoute", "message": "Impossible route"}),
+        httpx.Response(400, json={"code": "NoSegment", "message": "Could not find a road"}),
+        httpx.Response(200, json={"code": "Ok", "routes": []}),
+    ],
+)
+def test_no_road_between_places_raises_no_route_found(response: httpx.Response) -> None:
+    with pytest.raises(NoRouteFound):
+        find_routes(DENVER, CHICAGO, client=fake_api(lambda request: response))
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(400, json={"code": "InvalidQuery", "message": "Query string malformed"}),
+        httpx.Response(503, text=""),
+        httpx.Response(502, text="<html>Bad gateway</html>"),
+        httpx.Response(200, json={"code": "TooBig"}),
+        httpx.Response(200, json={"code": "Ok", "routes": [{"distance": 1}]}),
+        httpx.Response(200, json=["not", "an", "object"]),
+    ],
+)
+def test_service_problems_raise_routing_error(response: httpx.Response) -> None:
+    with pytest.raises(RoutingError) as caught:
+        find_routes(DENVER, CHICAGO, client=fake_api(lambda request: response))
+
+    assert not isinstance(caught.value, NoRouteFound)
+
+
+def test_network_failure_raises_routing_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("slow", request=request)
+
+    with pytest.raises(RoutingError):
+        find_routes(DENVER, CHICAGO, client=fake_api(handler))

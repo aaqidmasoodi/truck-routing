@@ -15,6 +15,14 @@ from .http import new_client
 METERS_PER_MILE = 1609.344
 
 
+class RoutingError(Exception):
+    """The routing service couldn't be reached or sent back something we can't use."""
+
+
+class NoRouteFound(RoutingError):
+    """The service works, but there's no road between the two places (an ocean, say)."""
+
+
 @dataclass(frozen=True)
 class Route:
     id: str
@@ -48,9 +56,30 @@ def find_routes(
 def _fetch(http: httpx.Client, origin: Point, destination: Point) -> list[Route]:
     # OSRM wants longitude first.
     coordinates = ";".join(f"{lon},{lat}" for lat, lon in (origin, destination))
-    response = http.get(
-        f"{settings.ROUTING_URL}/{coordinates}",
-        params={"alternatives": 3, "overview": "full", "geometries": "polyline6", "steps": "false"},
-    )
-    response.raise_for_status()
-    return parse_routes(response.json())
+    try:
+        response = http.get(
+            f"{settings.ROUTING_URL}/{coordinates}",
+            params={
+                "alternatives": 3,
+                "overview": "full",
+                "geometries": "polyline6",
+                "steps": "false",
+            },
+        )
+        # OSRM sends errors as HTTP 400 with a code in the body, so read that first.
+        payload = response.json() if response.content else {}
+        code = payload.get("code") if isinstance(payload, dict) else None
+        if code in ("NoRoute", "NoSegment"):
+            raise NoRouteFound(payload.get("message", "No route between these places"))
+        response.raise_for_status()
+        if code != "Ok":
+            raise RoutingError(f"Routing service said {code!r}")
+        routes = parse_routes(payload)
+    except httpx.HTTPError as error:
+        raise RoutingError(f"Routing request failed: {error}") from error
+    except (ValueError, KeyError, TypeError) as error:
+        raise RoutingError(f"Unexpected routing response: {error}") from error
+
+    if not routes:
+        raise NoRouteFound("No route between these places")
+    return routes
