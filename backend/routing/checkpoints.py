@@ -2,10 +2,21 @@
 
 from bisect import bisect_left
 from collections.abc import Sequence
+from dataclasses import dataclass
 from itertools import accumulate, pairwise
+from math import ceil
 
 from .geo import miles_between
 from .polyline import Point
+
+SPACINGS_MILES = (10, 25, 50)
+
+
+@dataclass(frozen=True)
+class Checkpoint:
+    latitude: float
+    longitude: float
+    mile: float
 
 
 def distances_along(points: Sequence[Point]) -> list[float]:
@@ -27,3 +38,21 @@ def point_at(points: Sequence[Point], along: Sequence[float], miles: float) -> P
     share = (miles - along[before]) / gap if gap else 0
     (lat1, lon1), (lat2, lon2) = points[before], points[after]
     return (lat1 + (lat2 - lat1) * share, lon1 + (lon2 - lon1) * share)
+
+
+def place_checkpoints(points: Sequence[Point], spacing_miles: float) -> list[Checkpoint]:
+    """A checkpoint at the start, every `spacing_miles` after that, and one at the end."""
+    if spacing_miles <= 0:
+        raise ValueError(f"Spacing must be positive, got {spacing_miles}")
+    if not points:
+        raise ValueError("A route needs at least one point")
+
+    along = distances_along(points)
+    total = along[-1]
+    marks = [n * spacing_miles for n in range(ceil(total / spacing_miles))] + [total]
+
+    checkpoints = []
+    for mile in marks:
+        lat, lon = point_at(points, along, mile)
+        checkpoints.append(Checkpoint(latitude=lat, longitude=lon, mile=mile))
+    return checkpoints

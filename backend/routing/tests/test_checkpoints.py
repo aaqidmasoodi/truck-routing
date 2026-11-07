@@ -1,6 +1,7 @@
 import pytest
 
-from routing.checkpoints import distances_along, point_at
+from routing.checkpoints import Checkpoint, distances_along, place_checkpoints, point_at
+from routing.polyline import Point
 
 # Straight north along the meridian: each degree is about 69.1 miles.
 NORTH = [(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)]
@@ -45,3 +46,44 @@ def test_repeated_points_do_not_divide_by_zero() -> None:
     along = distances_along(route)
 
     assert point_at(route, along, 10)[0] == pytest.approx(10 / along[-1])
+
+
+def miles(checkpoints: list[Checkpoint]) -> list[float]:
+    return [round(checkpoint.mile, 1) for checkpoint in checkpoints]
+
+
+def test_checkpoints_start_and_end_with_the_route() -> None:
+    checkpoints = place_checkpoints(NORTH, spacing_miles=50)
+
+    assert (checkpoints[0].latitude, checkpoints[0].longitude) == NORTH[0]
+    assert (checkpoints[-1].latitude, checkpoints[-1].longitude) == NORTH[-1]
+
+
+@pytest.mark.parametrize(
+    ("spacing", "expected"),
+    [
+        (50, [0, 50, 100, 138.2]),
+        (25, [0, 25, 50, 75, 100, 125, 138.2]),
+        (200, [0, 138.2]),
+    ],
+)
+def test_checkpoints_are_evenly_spaced(spacing: float, expected: list[float]) -> None:
+    assert miles(place_checkpoints(NORTH, spacing)) == pytest.approx(expected, abs=0.2)
+
+
+def test_route_length_on_a_spacing_mark_has_no_duplicate_end() -> None:
+    along = distances_along(NORTH)
+
+    checkpoints = place_checkpoints(NORTH, spacing_miles=along[-1] / 2)
+
+    assert len(checkpoints) == 3
+
+
+def test_zero_length_route_has_one_checkpoint() -> None:
+    assert miles(place_checkpoints([(5.0, 5.0)], 25)) == [0]
+
+
+@pytest.mark.parametrize(("points", "spacing"), [(NORTH, 0), (NORTH, -10), ([], 25)])
+def test_bad_input_is_rejected(points: list[Point], spacing: float) -> None:
+    with pytest.raises(ValueError):
+        place_checkpoints(points, spacing)
