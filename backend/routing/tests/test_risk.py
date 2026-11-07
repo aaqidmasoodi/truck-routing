@@ -1,6 +1,6 @@
 import pytest
 
-from routing.risk import RiskLevel, rain_risk, wind_risk
+from routing.risk import RiskLevel, rain_risk, snow_risk, wind_risk
 
 
 def test_levels_are_ordered_from_safest_to_worst() -> None:
@@ -59,3 +59,26 @@ def test_rain_risk(rate: float, expected: RiskLevel) -> None:
 def test_rain_risk_rejects_negative_rate() -> None:
     with pytest.raises(ValueError):
         rain_risk(-0.1)
+
+
+@pytest.mark.parametrize(
+    ("rate", "expected"),
+    [
+        (0, RiskLevel.LOW),
+        (0.49, RiskLevel.LOW),
+        (0.5, RiskLevel.MODERATE),
+        (0.99, RiskLevel.MODERATE),
+        (1.0, RiskLevel.HIGH),
+        (1.99, RiskLevel.HIGH),
+        (2.0, RiskLevel.SEVERE),
+        (3.0, RiskLevel.SEVERE),
+        (3.01, RiskLevel.NO_TRAVEL),
+    ],
+)
+def test_snow_risk(rate: float, expected: RiskLevel) -> None:
+    assert snow_risk(rate) == expected
+
+
+def test_snow_risk_rejects_negative_rate() -> None:
+    with pytest.raises(ValueError):
+        snow_risk(-0.5)

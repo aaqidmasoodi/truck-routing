@@ -42,3 +42,16 @@ def rain_risk(inches_per_hour: float) -> RiskLevel:
     if inches_per_hour <= 1.00:
         return RiskLevel.SEVERE
     return RiskLevel.NO_TRAVEL
+
+
+def snow_risk(inches_per_hour: float) -> RiskLevel:
+    _require_non_negative(inches_per_hour, "Snow rate")
+    if inches_per_hour < 0.5:
+        return RiskLevel.LOW
+    if inches_per_hour < 1.0:
+        return RiskLevel.MODERATE
+    if inches_per_hour < 2.0:
+        return RiskLevel.HIGH
+    if inches_per_hour <= 3.0:
+        return RiskLevel.SEVERE
+    return RiskLevel.NO_TRAVEL
