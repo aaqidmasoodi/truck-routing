@@ -18,8 +18,11 @@ Heavier loads make wind worse:
 A checkpoint's overall risk is the worst of its wind, rain and snow levels.
 """
 
+import logging
 from dataclasses import dataclass
 from enum import IntEnum
+
+logger = logging.getLogger(__name__)
 
 
 class RiskLevel(IntEnum):
@@ -115,8 +118,18 @@ class CheckpointRisk:
 
 
 def checkpoint_risk(conditions: Conditions, weight_lb: float) -> CheckpointRisk:
-    return CheckpointRisk(
+    risk = CheckpointRisk(
         wind=wind_risk_for_load(conditions.wind_mph, weight_lb),
         rain=rain_risk(conditions.rain_in_per_hr),
         snow=snow_risk(conditions.snow_in_per_hr),
     )
+    logger.debug(
+        "checkpoint %s at %s lb -> %s (wind=%s rain=%s snow=%s)",
+        conditions,
+        weight_lb,
+        risk.level.label,
+        risk.wind.label,
+        risk.rain.label,
+        risk.snow.label,
+    )
+    return risk
