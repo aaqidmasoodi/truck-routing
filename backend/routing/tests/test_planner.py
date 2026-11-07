@@ -4,7 +4,7 @@ import pytest
 
 from routing.checkpoints import ScheduledCheckpoint
 from routing.clients.routing import Route
-from routing.planner import assess, plan_route
+from routing.planner import PlannedRoute, assess, plan_route, recommend
 from routing.risk import Conditions, RiskLevel
 
 LEAVING = datetime(2026, 11, 9, 8, 0, tzinfo=UTC)
@@ -68,3 +68,45 @@ def test_unknown_weather_is_counted_but_ranked_as_low() -> None:
 
     assert planned.unknown_miles == 15
     assert planned.score.average_risk == 0
+
+
+def planned_route(route_id: str, minutes: float, weather: list[Conditions | None]) -> PlannedRoute:
+    route = Route(route_id, distance_miles=20, duration_minutes=minutes, points=[])
+    checkpoints = [checkpoint(0, 5), checkpoint(10, 10), checkpoint(20, 5)]
+    return plan_route(route, assess(checkpoints, weather, 20_000))
+
+
+def test_safest_route_is_recommended_over_the_fastest() -> None:
+    fast = planned_route("fast", 30, [CALM, SNOWY, CALM])
+    slow = planned_route("slow", 45, [CALM, CALM, CALM])
+
+    plan = recommend([fast, slow])
+
+    assert [p.route.id for p in plan.routes] == ["slow", "fast"]
+    assert plan.reason == "10 fewer miles of Severe weather"
+    assert plan.safe_to_travel
+
+
+def test_fastest_wins_when_the_weather_is_the_same() -> None:
+    plan = recommend([planned_route("a", 50, [CALM] * 3), planned_route("b", 40, [CALM] * 3)])
+
+    assert plan.routes[0].route.id == "b"
+    assert plan.reason == "10 min faster"
+
+
+def test_single_route_says_so() -> None:
+    plan = recommend([planned_route("a", 50, [CALM] * 3)])
+
+    assert plan.reason == "The only route found"
+
+
+def test_no_travel_on_every_route_is_flagged() -> None:
+    blizzard = Conditions(wind_mph=60, rain_in_per_hr=0, snow_in_per_hr=4)
+    plan = recommend([planned_route("a", 50, [CALM, blizzard, CALM])])
+
+    assert not plan.safe_to_travel
+
+
+def test_nothing_to_recommend() -> None:
+    with pytest.raises(ValueError):
+        recommend([])
