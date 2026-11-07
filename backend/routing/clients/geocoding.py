@@ -10,6 +10,10 @@ import httpx
 from django.conf import settings
 
 
+class GeocodingError(Exception):
+    """The geocoder couldn't be reached or sent back something we can't use."""
+
+
 @dataclass(frozen=True)
 class Place:
     name: str
@@ -45,9 +49,14 @@ def search_places(query: str, count: int = 5, client: httpx.Client | None = None
 
 
 def _search(http: httpx.Client, query: str, count: int) -> list[Place]:
-    response = http.get(
-        settings.GEOCODING_URL,
-        params={"name": query, "count": count, "language": "en", "format": "json"},
-    )
-    response.raise_for_status()
-    return parse_places(response.json())
+    try:
+        response = http.get(
+            settings.GEOCODING_URL,
+            params={"name": query, "count": count, "language": "en", "format": "json"},
+        )
+        response.raise_for_status()
+        return parse_places(response.json())
+    except httpx.HTTPError as error:
+        raise GeocodingError(f"Geocoding request failed: {error}") from error
+    except (ValueError, KeyError, TypeError) as error:
+        raise GeocodingError(f"Unexpected geocoding response: {error}") from error

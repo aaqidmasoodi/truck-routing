@@ -3,7 +3,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 
-from routing.clients.geocoding import Place, parse_places, search_places
+from routing.clients.geocoding import GeocodingError, Place, parse_places, search_places
 
 DENVER = {
     "id": 5419384,
@@ -62,3 +62,25 @@ def test_search_opens_its_own_client_when_none_is_given(monkeypatch: pytest.Monk
     )
 
     assert search_places("Nowhere") == []
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(400, json={"error": True, "reason": "Parameter count must be 1-100"}),
+        httpx.Response(503, text="down"),
+        httpx.Response(200, text="not json"),
+        httpx.Response(200, json={"results": [{"name": "No coordinates"}]}),
+    ],
+)
+def test_bad_responses_raise_geocoding_error(response: httpx.Response) -> None:
+    with pytest.raises(GeocodingError):
+        search_places("Denver", client=fake_api(lambda request: response))
+
+
+def test_network_failure_raises_geocoding_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("timed out", request=request)
+
+    with pytest.raises(GeocodingError):
+        search_places("Denver", client=fake_api(handler))
