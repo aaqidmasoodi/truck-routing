@@ -21,3 +21,25 @@ class PlaceSerializer(serializers.Serializer[Any]):
     display_name = serializers.CharField(source="label")
     latitude = serializers.FloatField()
     longitude = serializers.FloatField()
+
+
+class Coordinates(serializers.Serializer[Any]):
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
+
+
+class RouteRequest(serializers.Serializer[Any]):
+    origin = Coordinates()
+    destination = Coordinates()
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["origin"] == attrs["destination"]:
+            raise serializers.ValidationError("Start and destination are the same place.")
+        return attrs
+
+
+class RouteSerializer(serializers.Serializer[Any]):
+    id = serializers.CharField()
+    distance_miles = serializers.FloatField()
+    duration_minutes = serializers.FloatField()
+    points = serializers.ListField(child=serializers.ListField(child=serializers.FloatField()))

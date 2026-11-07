@@ -6,8 +6,15 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .clients.geocoding import GeocodingError, search_places
+from .clients.routing import NoRouteFound, RoutingError, find_routes
 from .risk import Conditions, RiskLevel, checkpoint_risk
-from .serializers import CheckpointRiskInput, PlaceQuery, PlaceSerializer
+from .serializers import (
+    CheckpointRiskInput,
+    PlaceQuery,
+    PlaceSerializer,
+    RouteRequest,
+    RouteSerializer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,3 +74,30 @@ def places(request: Request) -> Response:
             status=status.HTTP_502_BAD_GATEWAY,
         )
     return Response(PlaceSerializer(found, many=True).data)
+
+
+@api_view(["POST"])
+def routes(request: Request) -> Response:
+    form = RouteRequest(data=request.data)
+    if not form.is_valid():
+        logger.info("rejected route request: %s", form.errors)
+        return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    origin = form.validated_data["origin"]
+    destination = form.validated_data["destination"]
+    try:
+        found = find_routes(
+            (origin["latitude"], origin["longitude"]),
+            (destination["latitude"], destination["longitude"]),
+        )
+    except NoRouteFound:
+        return Response(
+            {"detail": "There's no road route between these places."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except RoutingError:
+        return Response(
+            {"detail": "Route planning is unavailable right now. Try again in a moment."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+    return Response(RouteSerializer(found, many=True).data)
