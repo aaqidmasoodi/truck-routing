@@ -26,6 +26,10 @@ LOCATIONS_PER_REQUEST = 100
 VARIABLES = "wind_speed_10m,rain,showers,snowfall"
 
 
+class WeatherError(Exception):
+    """The forecast service couldn't be reached or sent back something we can't use."""
+
+
 @dataclass(frozen=True)
 class Forecast:
     """One location's hourly forecast. Index i of each list belongs to times[i]."""
@@ -99,18 +103,26 @@ def fetch_forecasts(
 def _fetch_all(http: httpx.Client, points: Sequence[Point], hours: int) -> list[Forecast]:
     forecasts: list[Forecast] = []
     for chunk in batched(points, LOCATIONS_PER_REQUEST):
-        response = http.get(
-            settings.WEATHER_URL,
-            params={
-                "latitude": ",".join(str(rounded(point)[0]) for point in chunk),
-                "longitude": ",".join(str(rounded(point)[1]) for point in chunk),
-                "hourly": VARIABLES,
-                "wind_speed_unit": "mph",
-                "timeformat": "unixtime",
-                "past_hours": 1,
-                "forecast_hours": hours,
-            },
-        )
-        response.raise_for_status()
-        forecasts.extend(parse_forecasts(response.json()))
+        try:
+            response = http.get(
+                settings.WEATHER_URL,
+                params={
+                    "latitude": ",".join(str(rounded(point)[0]) for point in chunk),
+                    "longitude": ",".join(str(rounded(point)[1]) for point in chunk),
+                    "hourly": VARIABLES,
+                    "wind_speed_unit": "mph",
+                    "timeformat": "unixtime",
+                    "past_hours": 1,
+                    "forecast_hours": hours,
+                },
+            )
+            response.raise_for_status()
+            found = parse_forecasts(response.json())
+        except httpx.HTTPError as error:
+            raise WeatherError(f"Forecast request failed: {error}") from error
+        except (ValueError, KeyError, TypeError) as error:
+            raise WeatherError(f"Unexpected forecast response: {error}") from error
+        if len(found) != len(chunk):
+            raise WeatherError(f"Asked for {len(chunk)} forecasts, got {len(found)}")
+        forecasts.extend(found)
     return forecasts

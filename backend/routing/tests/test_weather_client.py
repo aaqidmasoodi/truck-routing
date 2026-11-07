@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
-from routing.clients.weather import Forecast, fetch_forecasts, parse_forecasts
+from routing.clients.weather import Forecast, WeatherError, fetch_forecasts, parse_forecasts
 
 HOUR = 3600
 START = 1_794_052_800  # 2026-11-07 12:00 UTC
@@ -155,3 +155,26 @@ def test_fetch_opens_its_own_client(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     assert len(fetch_forecasts([(53.35, -6.26)], hours=24)) == 1
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(400, json={"error": True, "reason": "Latitude must be in range"}),
+        httpx.Response(503, text="busy"),
+        httpx.Response(200, text="not json"),
+        httpx.Response(200, json={"latitude": 1}),
+        httpx.Response(200, json=[location()]),
+    ],
+)
+def test_bad_responses_raise_weather_error(response: httpx.Response) -> None:
+    with pytest.raises(WeatherError):
+        fetch_forecasts([(53.35, -6.26), (53.27, -9.06)], 24, client=fake_api(lambda r: response))
+
+
+def test_network_failure_raises_weather_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("no answer", request=request)
+
+    with pytest.raises(WeatherError):
+        fetch_forecasts([(53.35, -6.26)], 24, client=fake_api(handler))
