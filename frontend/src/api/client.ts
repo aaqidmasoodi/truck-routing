@@ -32,12 +32,11 @@ export interface Checkpoint {
   weather: Weather | null
 }
 
-export interface RouteOption {
+interface RouteOption {
   id: string
   distance_miles: number
   duration_minutes: number
   points: [number, number][]
-  checkpoints: Checkpoint[]
 }
 
 export type Spacing = 10 | 25 | 50
@@ -68,7 +67,7 @@ export interface RouteScore {
   average_risk: number
 }
 
-export interface PlannedRoute extends Omit<RouteOption, 'checkpoints'> {
+export interface PlannedRoute extends RouteOption {
   score: RouteScore
   unknown_weather_miles: number
   checkpoints: PlannedCheckpoint[]
@@ -119,18 +118,6 @@ export function getHealth(): Promise<{ status: string }> {
 export function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
   const params = new URLSearchParams({ q: query })
   return request(`/api/places/?${params}`, signal ? { signal } : {})
-}
-
-export function findRoutes(
-  origin: Coordinates,
-  destination: Coordinates,
-  spacingMiles: Spacing = 25,
-): Promise<RouteOption[]> {
-  return request('/api/routes/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ origin, destination, spacing_miles: spacingMiles }),
-  })
 }
 
 export function planTrip(trip: Trip): Promise<TripPlan> {
