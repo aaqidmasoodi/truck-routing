@@ -76,3 +76,7 @@ class WeatherSerializer(serializers.Serializer[Any]):
     wind_mph = serializers.FloatField()
     rain_in_per_hr = serializers.FloatField()
     snow_in_per_hr = serializers.FloatField()
+
+
+class PlanRequest(RouteRequest):
+    weight_lb = serializers.FloatField(min_value=1, max_value=200_000)
