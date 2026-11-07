@@ -24,7 +24,7 @@ const theme = createTheme({
     text: { primary: m3.onSurface, secondary: m3.onSurfaceVariant },
     divider: m3.outlineVariant,
   },
-  shape: { borderRadius: 8 },
+  shape: { borderRadius: 12 },
   // Material 3 type scale: display, headline, title, body and label styles.
   typography: {
     fontFamily: "'Roboto Flex Variable', Roboto, system-ui, sans-serif",
@@ -57,6 +57,47 @@ const theme = createTheme({
       fontWeight: 500,
       letterSpacing: '0.045em',
       textTransform: 'none',
+    },
+  },
+  components: {
+    MuiPaper: {
+      styleOverrides: { root: { backgroundImage: 'none' } },
+    },
+    MuiButton: {
+      defaultProps: { disableElevation: true },
+      styleOverrides: { root: { borderRadius: 20, minHeight: 40, paddingInline: 24 } },
+    },
+    MuiCard: {
+      defaultProps: { elevation: 0 },
+      styleOverrides: { root: { borderRadius: 12 } },
+    },
+    MuiChip: {
+      styleOverrides: { root: { borderRadius: 8, height: 32 } },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: { root: { borderRadius: 4 } },
+    },
+    MuiDialog: {
+      styleOverrides: { paper: { borderRadius: 28, backgroundColor: m3.surfaceContainerHigh } },
+    },
+    MuiFab: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: 'none',
+          backgroundColor: m3.primaryContainer,
+          color: m3.onPrimaryContainer,
+        },
+      },
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          backgroundColor: m3.inverseSurface,
+          color: m3.inverseOnSurface,
+          borderRadius: 4,
+        },
+      },
     },
   },
 })
