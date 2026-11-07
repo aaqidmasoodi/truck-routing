@@ -87,3 +87,24 @@ def test_zero_length_route_has_one_checkpoint() -> None:
 def test_bad_input_is_rejected(points: list[Point], spacing: float) -> None:
     with pytest.raises(ValueError):
         place_checkpoints(points, spacing)
+
+
+def test_segments_add_up_to_the_whole_route() -> None:
+    checkpoints = place_checkpoints(NORTH, spacing_miles=25)
+
+    assert sum(c.segment_miles for c in checkpoints) == pytest.approx(checkpoints[-1].mile)
+
+
+def test_inner_checkpoints_cover_half_of_each_side() -> None:
+    first, second, *_ = place_checkpoints(NORTH, spacing_miles=25)
+
+    assert first.segment_miles == pytest.approx(12.5)
+    assert second.segment_miles == pytest.approx(25)
+
+
+def test_miles_follow_the_road_distance_when_given() -> None:
+    checkpoints = place_checkpoints(NORTH, spacing_miles=50, road_miles=150)
+
+    assert miles(checkpoints) == [0, 50, 100, 150]
+    # 100 of 150 road miles is two thirds of the way along the shape.
+    assert checkpoints[2].latitude == pytest.approx(2 * 2 / 3, abs=0.01)
