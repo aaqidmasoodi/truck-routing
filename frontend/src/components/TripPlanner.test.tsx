@@ -76,3 +76,19 @@ describe('TripPlanner', () => {
     )
   })
 })
+
+describe('TripPlanner spacing', () => {
+  it('asks for checkpoints at the chosen spacing', async () => {
+    fakeApi(() => Response.json([]))
+    render(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: '10 mi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    const routeCall = vi
+      .mocked(fetch)
+      .mock.calls.find(([input]) => String(input).includes('/api/routes/'))
+    expect(JSON.parse(String(routeCall?.[1]?.body)).spacing_miles).toBe(10)
+  })
+})
