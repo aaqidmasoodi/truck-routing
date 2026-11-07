@@ -82,3 +82,19 @@ def test_float_noise_does_not_decide_a_tie() -> None:
 
 def test_full_ties_keep_the_original_order() -> None:
     assert ids(rank_routes([make("a"), make("b"), make("c")])) == ["a", "b", "c"]
+
+
+def test_no_travel_miles_are_counted() -> None:
+    score = score_route(
+        "a", [Segment(4, RiskLevel.NO_TRAVEL), Segment(6, SEVERE)], duration_minutes=20
+    )
+
+    assert score.no_travel_miles == 4
+    assert score.severe_miles == 6
+
+
+def test_any_no_travel_miles_rank_below_severe_miles() -> None:
+    blocked = RouteScore("blocked", 0, 0, 0.1, 60, no_travel_miles=1)
+    stormy = make("stormy", severe=40, high=30, avg=2.5)
+
+    assert ids(rank_routes([blocked, stormy])) == ["stormy", "blocked"]

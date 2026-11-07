@@ -5,6 +5,9 @@ checkpoint, so its risk level applies to all of its miles.
 
 Routes are ranked the way the brief asks: fewest Severe miles, then fewest High
 miles, then lowest average risk, then shortest time.
+
+The brief doesn't rank No Travel miles, but they mean the truck shouldn't go at
+all, so they're checked before anything else.
 """
 
 from collections.abc import Sequence
@@ -26,6 +29,7 @@ class RouteScore:
     high_miles: float
     average_risk: float
     duration_minutes: float
+    no_travel_miles: float = 0
 
 
 def _miles_at(segments: Sequence[Segment], level: RiskLevel) -> float:
@@ -52,12 +56,14 @@ def score_route(route_id: str, segments: Sequence[Segment], duration_minutes: fl
         high_miles=_miles_at(segments, RiskLevel.HIGH),
         average_risk=_average_risk(segments),
         duration_minutes=duration_minutes,
+        no_travel_miles=_miles_at(segments, RiskLevel.NO_TRAVEL),
     )
 
 
-def _rank_key(score: RouteScore) -> tuple[float, float, float, float]:
+def _rank_key(score: RouteScore) -> tuple[float, float, float, float, float]:
     # Rounded so floating point noise (0.1 + 0.2) can't decide a tie.
     return (
+        round(score.no_travel_miles, 2),
         round(score.severe_miles, 2),
         round(score.high_miles, 2),
         round(score.average_risk, 4),
