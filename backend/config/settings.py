@@ -132,3 +132,22 @@ MAILERS = {
 }
 
 CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
+# Logging: our own "routing" logs go to the console. With DEBUG on they include
+# debug lines; set LOG_LEVEL to override (for example LOG_LEVEL=WARNING).
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG" if DEBUG else "INFO")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {"format": "{asctime} {levelname} {name}: {message}", "style": "{"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "routing": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+    },
+}
