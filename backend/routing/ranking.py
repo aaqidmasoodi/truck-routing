@@ -21,11 +21,20 @@ class RouteScore:
     route_id: str
     severe_miles: float
     high_miles: float
+    average_risk: float
     duration_minutes: float
 
 
 def _miles_at(segments: Sequence[Segment], level: RiskLevel) -> float:
     return sum(segment.miles for segment in segments if segment.risk == level)
+
+
+def _average_risk(segments: Sequence[Segment]) -> float:
+    """Risk level averaged over distance, so a long stretch counts more than a short one."""
+    total_miles = sum(segment.miles for segment in segments)
+    if total_miles == 0:
+        return max(segment.risk for segment in segments)
+    return sum(segment.risk * segment.miles for segment in segments) / total_miles
 
 
 def score_route(route_id: str, segments: Sequence[Segment], duration_minutes: float) -> RouteScore:
@@ -38,5 +47,6 @@ def score_route(route_id: str, segments: Sequence[Segment], duration_minutes: fl
         route_id=route_id,
         severe_miles=_miles_at(segments, RiskLevel.SEVERE),
         high_miles=_miles_at(segments, RiskLevel.HIGH),
+        average_risk=_average_risk(segments),
         duration_minutes=duration_minutes,
     )

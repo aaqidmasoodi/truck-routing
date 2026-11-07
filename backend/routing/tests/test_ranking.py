@@ -26,3 +26,15 @@ def test_route_without_segments_is_rejected() -> None:
 def test_negative_miles_are_rejected() -> None:
     with pytest.raises(ValueError):
         score_route("a", [Segment(-1, LOW)], duration_minutes=10)
+
+
+def test_average_risk_is_weighted_by_distance() -> None:
+    score = score_route("a", [Segment(90, LOW), Segment(10, SEVERE)], duration_minutes=60)
+
+    assert score.average_risk == pytest.approx(0.3)
+
+
+def test_average_risk_of_zero_length_route_uses_worst_level() -> None:
+    score = score_route("a", [Segment(0, HIGH), Segment(0, LOW)], duration_minutes=1)
+
+    assert score.average_risk == HIGH
