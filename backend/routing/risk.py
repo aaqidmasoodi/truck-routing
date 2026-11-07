@@ -14,8 +14,11 @@ Heavier loads make wind worse:
 
     Wind 45-54 mph with more than 30,000 lb  -> No Travel
     Wind 35-44 mph with more than 40,000 lb  -> Severe
+
+A checkpoint's overall risk is the worst of its wind, rain and snow levels.
 """
 
+from dataclasses import dataclass
 from enum import IntEnum
 
 
@@ -83,3 +86,29 @@ def wind_risk_for_load(speed_mph: float, weight_lb: float) -> RiskLevel:
     if level == RiskLevel.HIGH and weight_lb > 40_000:
         return RiskLevel.SEVERE
     return level
+
+
+@dataclass(frozen=True)
+class Conditions:
+    wind_mph: float
+    rain_in_per_hr: float
+    snow_in_per_hr: float
+
+
+@dataclass(frozen=True)
+class CheckpointRisk:
+    wind: RiskLevel
+    rain: RiskLevel
+    snow: RiskLevel
+
+    @property
+    def level(self) -> RiskLevel:
+        return max(self.wind, self.rain, self.snow)
+
+
+def checkpoint_risk(conditions: Conditions, weight_lb: float) -> CheckpointRisk:
+    return CheckpointRisk(
+        wind=wind_risk_for_load(conditions.wind_mph, weight_lb),
+        rain=rain_risk(conditions.rain_in_per_hr),
+        snow=snow_risk(conditions.snow_in_per_hr),
+    )
