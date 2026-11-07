@@ -10,10 +10,13 @@ The brief doesn't rank No Travel miles, but they mean the truck shouldn't go at
 all, so they're checked before anything else.
 """
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .risk import RiskLevel
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -73,7 +76,15 @@ def _rank_key(score: RouteScore) -> tuple[float, float, float, float, float]:
 
 def rank_routes(scores: Sequence[RouteScore]) -> list[RouteScore]:
     """Safest route first. Routes that tie on everything keep their original order."""
-    return sorted(scores, key=_rank_key)
+    ranked = sorted(scores, key=_rank_key)
+    for position, score in enumerate(ranked, start=1):
+        logger.debug(
+            "#%d %s (no travel, severe, high, avg, minutes) = %s",
+            position,
+            score.route_id,
+            _rank_key(score),
+        )
+    return ranked
 
 
 def _number(value: float) -> str:

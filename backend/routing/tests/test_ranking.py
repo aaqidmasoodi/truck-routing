@@ -119,3 +119,11 @@ def test_why_ahead_names_the_deciding_rule(
     best: RouteScore, other: RouteScore, reason: str
 ) -> None:
     assert why_ahead(best, other) == reason
+
+
+def test_ranking_is_logged_at_debug(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level("DEBUG", logger="routing.ranking"):
+        rank_routes([make("a", minutes=90), make("b", minutes=75)])
+
+    assert "#1 b" in caplog.text
+    assert "#2 a" in caplog.text
