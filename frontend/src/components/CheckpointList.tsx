@@ -1,11 +1,14 @@
 import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
-import type { Checkpoint } from '../api/client'
+import Stack from '@mui/material/Stack'
+import Typography from '@mui/material/Typography'
+import type { PlannedCheckpoint } from '../api/client'
 import { formatArrival, formatMiles, formatWeather } from '../format'
+import RiskChip from './RiskChip'
 
 interface CheckpointListProps {
-  checkpoints: Checkpoint[]
+  checkpoints: PlannedCheckpoint[]
 }
 
 function placeName(index: number, count: number): string {
@@ -25,10 +28,10 @@ function CheckpointList({ checkpoints }: CheckpointListProps) {
             primary={placeName(index, checkpoints.length)}
             secondary={`${formatMiles(checkpoint.mile)} in · ${formatWeather(checkpoint.weather)}`}
           />
-          <ListItemText
-            primary={formatArrival(checkpoint.eta, departure)}
-            slotProps={{ primary: { sx: { textAlign: 'right' } } }}
-          />
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexShrink: 0 }}>
+            <Typography variant="body2">{formatArrival(checkpoint.eta, departure)}</Typography>
+            <RiskChip level={checkpoint.risk?.level ?? null} />
+          </Stack>
         </ListItem>
       ))}
     </List>

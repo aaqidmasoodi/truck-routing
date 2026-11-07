@@ -1,6 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { plannedRoute, tripPlan } from '../test/fixtures'
+import { renderWithTheme } from '../test/render'
 import TripPlanner from './TripPlanner'
 
 const places: Record<string, object> = {
@@ -22,51 +24,95 @@ const places: Record<string, object> = {
   },
 }
 
-function fakeApi(routesResponse: () => Response) {
+function fakeApi(planResponse: () => Response) {
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = new URL(String(input), 'http://test')
     if (url.pathname === '/api/places/') {
       return Response.json([places[url.searchParams.get('q') ?? '']])
     }
-    return routesResponse()
+    return planResponse()
   })
 }
 
-async function pickTrip() {
+async function pickTrip(weight = '36000') {
   await userEvent.type(screen.getByLabelText('From'), 'Denv')
   await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
   await userEvent.type(screen.getByLabelText('To'), 'Chic')
   await userEvent.click(await screen.findByText('Chicago, Illinois, United States'))
+  if (weight) await userEvent.type(screen.getByLabelText('Truck weight'), weight)
+}
+
+function planCall() {
+  const call = vi.mocked(fetch).mock.calls.find(([input]) => String(input) === '/api/plan/')
+  return JSON.parse(String(call?.[1]?.body))
 }
 
 describe('TripPlanner', () => {
-  it('needs both places before it can search', () => {
-    render(<TripPlanner />)
+  it('needs both places and a weight before it can search', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
 
     expect(screen.getByRole('button', { name: 'Find routes' })).toBeDisabled()
+    await pickTrip('')
+    expect(screen.getByRole('button', { name: 'Find routes' })).toBeDisabled()
+    await userEvent.type(screen.getByLabelText('Truck weight'), '36000')
+    expect(screen.getByRole('button', { name: 'Find routes' })).toBeEnabled()
   })
 
-  it('shows the routes it finds', async () => {
+  it.each(['0', '250000', 'heavy'])('rejects a weight of %s', async (weight) => {
+    renderWithTheme(<TripPlanner />)
+
+    await userEvent.type(screen.getByLabelText('Truck weight'), weight)
+
+    expect(screen.getByText('Enter a weight up to 200,000 lb')).toBeInTheDocument()
+  })
+
+  it('plans the trip and recommends the safest route', async () => {
     fakeApi(() =>
-      Response.json([
-        { id: 'route-1', distance_miles: 1003, duration_minutes: 905, points: [], checkpoints: [] },
-        { id: 'route-2', distance_miles: 1040, duration_minutes: 930, points: [], checkpoints: [] },
-      ]),
+      Response.json(
+        tripPlan([plannedRoute('route-2'), plannedRoute('route-1')], {
+          reason: '12 fewer miles of Severe weather',
+        }),
+      ),
     )
-    render(<TripPlanner />)
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: '10 mi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    expect(await screen.findByText('2 routes found, safest first')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Take Route 2. 12 fewer miles of Severe weather.',
+    )
+    expect(planCall()).toMatchObject({ weight_lb: 36000, spacing_miles: 10 })
+  })
+
+  it('warns when every route has No Travel weather', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')], { safe_to_travel: false })))
+    renderWithTheme(<TripPlanner />)
 
     await pickTrip()
     await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
 
-    expect(await screen.findByText('2 routes found')).toBeInTheDocument()
-    expect(screen.getByText('1,003 mi · 15 h 5 min')).toBeInTheDocument()
+    expect(await screen.findByText(/Every route runs into No Travel weather/)).toBeInTheDocument()
+  })
+
+  it('warns when part of the trip has no forecast', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1', { unknown_weather_miles: 40 })])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    expect(await screen.findByText(/beyond the forecast/)).toBeInTheDocument()
   })
 
   it("explains when there's no route", async () => {
     fakeApi(() =>
       Response.json({ detail: "There's no road route between these places." }, { status: 404 }),
     )
-    render(<TripPlanner />)
+    renderWithTheme(<TripPlanner />)
 
     await pickTrip()
     await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
@@ -74,21 +120,5 @@ describe('TripPlanner', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       "There's no road route between these places.",
     )
-  })
-})
-
-describe('TripPlanner spacing', () => {
-  it('asks for checkpoints at the chosen spacing', async () => {
-    fakeApi(() => Response.json([]))
-    render(<TripPlanner />)
-
-    await pickTrip()
-    await userEvent.click(screen.getByRole('button', { name: '10 mi' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
-
-    const routeCall = vi
-      .mocked(fetch)
-      .mock.calls.find(([input]) => String(input).includes('/api/routes/'))
-    expect(JSON.parse(String(routeCall?.[1]?.body)).spacing_miles).toBe(10)
   })
 })
