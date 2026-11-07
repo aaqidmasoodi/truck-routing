@@ -29,3 +29,16 @@ def wind_risk(speed_mph: float) -> RiskLevel:
     if speed_mph < 55:
         return RiskLevel.SEVERE
     return RiskLevel.NO_TRAVEL
+
+
+def rain_risk(inches_per_hour: float) -> RiskLevel:
+    _require_non_negative(inches_per_hour, "Rain rate")
+    if inches_per_hour < 0.10:
+        return RiskLevel.LOW
+    if inches_per_hour < 0.25:
+        return RiskLevel.MODERATE
+    if inches_per_hour < 0.50:
+        return RiskLevel.HIGH
+    if inches_per_hour <= 1.00:
+        return RiskLevel.SEVERE
+    return RiskLevel.NO_TRAVEL
