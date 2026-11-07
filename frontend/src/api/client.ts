@@ -42,6 +42,55 @@ export interface RouteOption {
 
 export type Spacing = 10 | 25 | 50
 
+export interface RiskLevel {
+  /** 0 Low, 1 Moderate, 2 High, 3 Severe, 4 No Travel */
+  value: 0 | 1 | 2 | 3 | 4
+  label: string
+}
+
+export interface CheckpointRisk {
+  level: RiskLevel
+  wind: RiskLevel
+  rain: RiskLevel
+  snow: RiskLevel
+  /** Which conditions set the overall level, e.g. ["wind"]. Empty when it's Low. */
+  causes: string[]
+}
+
+export interface PlannedCheckpoint extends Checkpoint {
+  risk: CheckpointRisk | null
+}
+
+export interface RouteScore {
+  no_travel_miles: number
+  severe_miles: number
+  high_miles: number
+  average_risk: number
+}
+
+export interface PlannedRoute extends Omit<RouteOption, 'checkpoints'> {
+  score: RouteScore
+  unknown_weather_miles: number
+  checkpoints: PlannedCheckpoint[]
+}
+
+export interface TripPlan {
+  recommended_route_id: string
+  /** Why the recommended route beats the next best, in plain words. */
+  reason: string
+  /** False when even the best route runs into No Travel weather. */
+  safe_to_travel: boolean
+  /** Safest first. */
+  routes: PlannedRoute[]
+}
+
+export interface Trip {
+  origin: Coordinates
+  destination: Coordinates
+  weightLb: number
+  spacingMiles: Spacing
+}
+
 export class ApiError extends Error {
   readonly status: number
 
@@ -81,5 +130,18 @@ export function findRoutes(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ origin, destination, spacing_miles: spacingMiles }),
+  })
+}
+
+export function planTrip(trip: Trip): Promise<TripPlan> {
+  return request('/api/plan/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      origin: { latitude: trip.origin.latitude, longitude: trip.origin.longitude },
+      destination: { latitude: trip.destination.latitude, longitude: trip.destination.longitude },
+      weight_lb: trip.weightLb,
+      spacing_miles: trip.spacingMiles,
+    }),
   })
 }
