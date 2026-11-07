@@ -105,6 +105,14 @@ class CheckpointRisk:
     def level(self) -> RiskLevel:
         return max(self.wind, self.rain, self.snow)
 
+    @property
+    def causes(self) -> list[str]:
+        """Conditions responsible for the overall level, empty when everything is Low."""
+        if self.level == RiskLevel.LOW:
+            return []
+        levels = {"wind": self.wind, "rain": self.rain, "snow": self.snow}
+        return [name for name, level in levels.items() if level == self.level]
+
 
 def checkpoint_risk(conditions: Conditions, weight_lb: float) -> CheckpointRisk:
     return CheckpointRisk(

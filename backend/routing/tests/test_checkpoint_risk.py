@@ -36,3 +36,13 @@ def test_each_condition_is_kept_for_display() -> None:
         RiskLevel.HIGH,
         RiskLevel.LOW,
     )
+
+
+def test_causes_name_the_worst_conditions() -> None:
+    stormy = Conditions(wind_mph=40, rain_in_per_hr=0.3, snow_in_per_hr=0.2)
+
+    assert checkpoint_risk(stormy, 20_000).causes == ["wind", "rain"]
+
+
+def test_low_risk_has_no_causes() -> None:
+    assert checkpoint_risk(CALM, 20_000).causes == []
