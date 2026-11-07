@@ -4,11 +4,16 @@ We ask for millimetres and centimetres and convert ourselves, so the units are n
 in doubt: rain comes back in mm per hour and snowfall in cm per hour.
 """
 
+from bisect import bisect_right
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
+
+from ..risk import Conditions
 
 MM_PER_INCH = 25.4
 CM_PER_INCH = 2.54
+HOUR = 3600
 
 
 @dataclass(frozen=True)
@@ -19,6 +24,25 @@ class Forecast:
     wind_mph: list[float]
     rain_in_per_hr: list[float]
     snow_in_per_hr: list[float]
+
+    def at(self, moment: datetime) -> Conditions | None:
+        """Weather when the truck gets there, or None if that's outside the forecast.
+
+        Rain and snow are totals for the hour *ending* at each timestamp, so the hour
+        the truck is in is the first timestamp after it. Wind is a snapshot, so the
+        nearest timestamp is used.
+        """
+        when = moment.timestamp()
+        if not self.times or not self.times[0] - HOUR <= when <= self.times[-1]:
+            return None
+
+        precip = min(bisect_right(self.times, when), len(self.times) - 1)
+        nearest = min(range(len(self.times)), key=lambda i: abs(self.times[i] - when))
+        return Conditions(
+            wind_mph=self.wind_mph[nearest],
+            rain_in_per_hr=self.rain_in_per_hr[precip],
+            snow_in_per_hr=self.snow_in_per_hr[precip],
+        )
 
 
 def _numbers(values: list[float | None]) -> list[float]:
