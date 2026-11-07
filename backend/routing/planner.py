@@ -123,4 +123,13 @@ def plan_trip(
         plan_route(route, assess(checkpoints, [next(weather) for _ in checkpoints], weight_lb))
         for route, checkpoints in zip(routes, per_route, strict=True)
     ]
-    return recommend(planned)
+    plan = recommend(planned)
+    logger.debug(
+        "planned %d routes for %s lb: recommending %s (%s)%s",
+        len(plan.routes),
+        weight_lb,
+        plan.routes[0].route.id,
+        plan.reason,
+        "" if plan.safe_to_travel else ", but every route has No Travel weather",
+    )
+    return plan

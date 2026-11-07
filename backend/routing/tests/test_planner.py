@@ -153,6 +153,17 @@ def test_plan_trip_puts_it_all_together(monkeypatch: pytest.MonkeyPatch) -> None
     assert plan.reason.endswith("fewer miles of Severe weather")
 
 
+def test_plan_is_logged(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    route = Route("route-1", distance_miles=35, duration_minutes=40, points=NORTH)
+    monkeypatch.setattr(planner, "find_routes", lambda origin, destination: [route])
+    monkeypatch.setattr(planner, "fetch_forecasts", lambda points: [hourly(CALM) for _ in points])
+
+    with caplog.at_level("DEBUG", logger="routing.planner"):
+        plan_trip(NORTH[0], NORTH[-1], 20_000, spacing_miles=10, departure=LEAVING)
+
+    assert "recommending route-1 (The only route found)" in caplog.text
+
+
 def test_plan_trip_survives_a_forecast_outage(monkeypatch: pytest.MonkeyPatch) -> None:
     route = Route("route-1", distance_miles=35, duration_minutes=40, points=NORTH)
     monkeypatch.setattr(planner, "find_routes", lambda origin, destination: [route])
