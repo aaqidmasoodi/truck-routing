@@ -2,7 +2,8 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .risk import RiskLevel
+from .risk import Conditions, RiskLevel, checkpoint_risk
+from .serializers import CheckpointRiskInput
 
 
 @api_view(["GET"])
@@ -10,6 +11,35 @@ def health(request: Request) -> Response:
     return Response({"status": "ok"})
 
 
+def _level(level: RiskLevel) -> dict[str, int | str]:
+    return {"value": level.value, "label": level.label}
+
+
 @api_view(["GET"])
 def risk_levels(request: Request) -> Response:
-    return Response([{"value": level.value, "label": level.label} for level in RiskLevel])
+    return Response([_level(level) for level in RiskLevel])
+
+
+@api_view(["POST"])
+def score_checkpoint(request: Request) -> Response:
+    form = CheckpointRiskInput(data=request.data)
+    form.is_valid(raise_exception=True)
+    data = form.validated_data
+
+    risk = checkpoint_risk(
+        Conditions(
+            wind_mph=data["wind_mph"],
+            rain_in_per_hr=data["rain_in_per_hr"],
+            snow_in_per_hr=data["snow_in_per_hr"],
+        ),
+        weight_lb=data["weight_lb"],
+    )
+    return Response(
+        {
+            "level": _level(risk.level),
+            "wind": _level(risk.wind),
+            "rain": _level(risk.rain),
+            "snow": _level(risk.snow),
+            "causes": risk.causes,
+        }
+    )
