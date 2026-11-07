@@ -1,6 +1,14 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
-from routing.checkpoints import Checkpoint, distances_along, place_checkpoints, point_at
+from routing.checkpoints import (
+    Checkpoint,
+    distances_along,
+    place_checkpoints,
+    point_at,
+    schedule,
+)
 from routing.polyline import Point
 
 # Straight north along the meridian: each degree is about 69.1 miles.
@@ -108,3 +116,38 @@ def test_miles_follow_the_road_distance_when_given() -> None:
     assert miles(checkpoints) == [0, 50, 100, 150]
     # 100 of 150 road miles is two thirds of the way along the shape.
     assert checkpoints[2].latitude == pytest.approx(2 * 2 / 3, abs=0.01)
+
+
+LEAVING = datetime(2026, 11, 9, 8, 0, tzinfo=UTC)
+
+
+def test_eta_grows_with_distance_at_average_speed() -> None:
+    checkpoints = place_checkpoints(NORTH, spacing_miles=50, road_miles=150)
+
+    times = [c.eta for c in schedule(checkpoints, LEAVING, duration_minutes=180)]
+
+    assert times == [
+        LEAVING,
+        LEAVING + timedelta(minutes=60),
+        LEAVING + timedelta(minutes=120),
+        LEAVING + timedelta(minutes=180),
+    ]
+
+
+def test_schedule_keeps_position_and_share() -> None:
+    checkpoint = place_checkpoints(NORTH, spacing_miles=50)[1]
+
+    scheduled = schedule([checkpoint], LEAVING, duration_minutes=60)[0]
+
+    assert (scheduled.latitude, scheduled.mile) == (checkpoint.latitude, checkpoint.mile)
+    assert scheduled.segment_miles == checkpoint.segment_miles
+
+
+def test_zero_length_route_arrives_at_departure() -> None:
+    checkpoints = place_checkpoints([(5.0, 5.0)], 25)
+
+    assert schedule(checkpoints, LEAVING, duration_minutes=0)[0].eta == LEAVING
+
+
+def test_nothing_to_schedule() -> None:
+    assert schedule([], LEAVING, duration_minutes=10) == []

@@ -3,6 +3,7 @@
 from bisect import bisect_left
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from itertools import accumulate, pairwise
 from math import ceil
 
@@ -20,6 +21,11 @@ class Checkpoint:
     # Half the road to the previous checkpoint plus half to the next one, so the
     # checkpoints' shares add up to the whole route.
     segment_miles: float
+
+
+@dataclass(frozen=True)
+class ScheduledCheckpoint(Checkpoint):
+    eta: datetime
 
 
 def distances_along(points: Sequence[Point]) -> list[float]:
@@ -78,3 +84,27 @@ def place_checkpoints(
             )
         )
     return checkpoints
+
+
+def schedule(
+    checkpoints: Sequence[Checkpoint], departure: datetime, duration_minutes: float
+) -> list[ScheduledCheckpoint]:
+    """Arrival time at each checkpoint, assuming the route's average speed throughout.
+
+    Real trucks slow down in towns and speed up on motorways, but the routing service
+    only gives a total time, and this keeps the error spread evenly instead of piling up.
+    """
+    total = checkpoints[-1].mile if checkpoints else 0
+    scheduled = []
+    for checkpoint in checkpoints:
+        share = checkpoint.mile / total if total else 0
+        scheduled.append(
+            ScheduledCheckpoint(
+                latitude=checkpoint.latitude,
+                longitude=checkpoint.longitude,
+                mile=checkpoint.mile,
+                segment_miles=checkpoint.segment_miles,
+                eta=departure + timedelta(minutes=duration_minutes * share),
+            )
+        )
+    return scheduled
