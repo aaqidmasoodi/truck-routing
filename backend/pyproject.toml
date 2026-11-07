@@ -23,3 +23,12 @@ django_settings_module = "config.settings"
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
 addopts = "-q"
+
+[tool.coverage.run]
+source = ["."]
+omit = ["manage.py", "config/asgi.py", "config/wsgi.py", "*/migrations/*", "*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 90
