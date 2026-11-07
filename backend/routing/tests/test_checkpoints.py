@@ -166,3 +166,20 @@ def test_route_checkpoints_use_road_miles_and_drive_time(
     assert [c.mile for c in checkpoints] == [0, 50, 100, 150]
     assert checkpoints[-1].eta == LEAVING + timedelta(hours=3)
     assert "route-1: 4 checkpoints every 50 mi" in caplog.text
+
+
+def test_mark_right_before_the_destination_is_dropped() -> None:
+    checkpoints = place_checkpoints(NORTH, spacing_miles=10, road_miles=130.2)
+
+    assert miles(checkpoints)[-3:] == [110, 120, 130.2]
+    assert sum(c.segment_miles for c in checkpoints) == pytest.approx(130.2)
+
+
+def test_mark_well_before_the_destination_is_kept() -> None:
+    checkpoints = place_checkpoints(NORTH, spacing_miles=10, road_miles=134)
+
+    assert miles(checkpoints)[-2:] == [130, 134]
+
+
+def test_short_trip_keeps_its_start() -> None:
+    assert miles(place_checkpoints(NORTH, spacing_miles=50, road_miles=5)) == [0, 5]

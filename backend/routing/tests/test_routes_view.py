@@ -86,7 +86,8 @@ def test_each_route_comes_with_checkpoints(client: Client, monkeypatch: pytest.M
     assert response.status_code == 200
     assert [c["mile"] for c in checkpoints[:3]] == [0, 50, 100]
     assert checkpoints[-1]["mile"] == 1003.2
-    assert len(checkpoints) == 22
+    # The 1000-mile mark is 3.2 mi from the end, so the destination replaces it.
+    assert len(checkpoints) == 21
     assert parse_datetime(checkpoints[0]["eta"]) == leaving
     assert parse_datetime(checkpoints[-1]["eta"]) == leaving + timedelta(minutes=905.5)
 

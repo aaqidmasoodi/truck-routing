@@ -58,6 +58,9 @@ def place_checkpoints(
 ) -> list[Checkpoint]:
     """A checkpoint at the start, every `spacing_miles` after that, and one at the end.
 
+    If the last spacing mark falls very close to the destination, the destination
+    takes its place.
+
     The decoded shape is a little shorter than the real road (it cuts corners), so
     when the routing service's own distance is given, miles are measured in that.
     """
@@ -72,7 +75,11 @@ def place_checkpoints(
     to_shape = shape_total / total if total else 1.0
 
     count = ceil(total / spacing_miles - 1e-9)
-    marks = [n * spacing_miles for n in range(count)] + [total]
+    marks = [n * spacing_miles for n in range(count)]
+    # A mark a few hundred yards before the destination tells you nothing new.
+    if len(marks) > 1 and total - marks[-1] < spacing_miles / 4:
+        marks.pop()
+    marks.append(total)
 
     checkpoints = []
     for index, mile in enumerate(marks):
