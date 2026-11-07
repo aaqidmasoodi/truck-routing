@@ -2,6 +2,9 @@
 
 Each route is a list of segments. A segment is the stretch of road around one
 checkpoint, so its risk level applies to all of its miles.
+
+Routes are ranked the way the brief asks: fewest Severe miles, then fewest High
+miles, then lowest average risk, then shortest time.
 """
 
 from collections.abc import Sequence
@@ -50,3 +53,18 @@ def score_route(route_id: str, segments: Sequence[Segment], duration_minutes: fl
         average_risk=_average_risk(segments),
         duration_minutes=duration_minutes,
     )
+
+
+def _rank_key(score: RouteScore) -> tuple[float, float, float, float]:
+    # Rounded so floating point noise (0.1 + 0.2) can't decide a tie.
+    return (
+        round(score.severe_miles, 2),
+        round(score.high_miles, 2),
+        round(score.average_risk, 4),
+        round(score.duration_minutes, 2),
+    )
+
+
+def rank_routes(scores: Sequence[RouteScore]) -> list[RouteScore]:
+    """Safest route first. Routes that tie on everything keep their original order."""
+    return sorted(scores, key=_rank_key)
