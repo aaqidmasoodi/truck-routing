@@ -32,6 +32,20 @@ curl -X POST localhost:8000/api/checkpoint-risk/ \
 
 This returns the level for each condition, the overall level, and which conditions caused it.
 
+## How routes are ranked
+
+Each checkpoint covers a stretch of road, and that stretch takes the checkpoint's risk
+level. Routes are then compared in this order (see `backend/routing/ranking.py`):
+
+1. Fewest miles of No Travel weather. The brief doesn't rank these, but the truck
+   shouldn't drive into them at all, so they come first.
+2. Fewest Severe miles
+3. Fewest High miles
+4. Lowest average risk, weighted by distance
+5. Shortest travel time
+
+The top route also gets a short reason, such as "12 fewer miles of Severe weather".
+
 ## Running locally
 
 Backend (Python 3.12+):
