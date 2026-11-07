@@ -9,15 +9,17 @@ from rest_framework.response import Response
 from .checkpoints import checkpoints_for_route
 from .clients.geocoding import GeocodingError, search_places
 from .clients.routing import NoRouteFound, RoutingError, find_routes
-from .planner import weather_at
+from .planner import plan_trip, weather_at
 from .risk import Conditions, RiskLevel, checkpoint_risk
 from .serializers import (
     CheckpointRiskInput,
     CheckpointSerializer,
     PlaceQuery,
     PlaceSerializer,
+    PlanRequest,
     RouteRequest,
     RouteSerializer,
+    TripPlanSerializer,
     WeatherSerializer,
 )
 
@@ -119,3 +121,33 @@ def routes(request: Request) -> Response:
             row["weather"] = WeatherSerializer(conditions).data if conditions else None
         body.append({**RouteSerializer(route).data, "checkpoints": rows})
     return Response(body)
+
+
+@api_view(["POST"])
+def plan(request: Request) -> Response:
+    """Route options for a truck trip, ranked safest first with the weather on the way."""
+    form = PlanRequest(data=request.data)
+    if not form.is_valid():
+        logger.info("rejected plan request: %s", form.errors)
+        return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    data = form.validated_data
+    try:
+        trip = plan_trip(
+            origin=(data["origin"]["latitude"], data["origin"]["longitude"]),
+            destination=(data["destination"]["latitude"], data["destination"]["longitude"]),
+            weight_lb=data["weight_lb"],
+            spacing_miles=data["spacing_miles"],
+            departure=data.get("departure") or timezone.now(),
+        )
+    except NoRouteFound:
+        return Response(
+            {"detail": "There's no road route between these places."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except RoutingError:
+        return Response(
+            {"detail": "Route planning is unavailable right now. Try again in a moment."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+    return Response(TripPlanSerializer(trip).data)
