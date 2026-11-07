@@ -1,8 +1,10 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 
+import httpx
 import pytest
 
-from routing.clients.weather import Forecast, parse_forecasts
+from routing.clients.weather import Forecast, fetch_forecasts, parse_forecasts
 
 HOUR = 3600
 START = 1_794_052_800  # 2026-11-07 12:00 UTC
@@ -98,3 +100,58 @@ def test_outside_the_forecast_is_unknown(seconds: int) -> None:
 
 def test_empty_forecast_is_unknown() -> None:
     assert Forecast([], [], [], []).at(at(START)) is None
+
+
+def fake_api(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def echo_locations(request: httpx.Request) -> httpx.Response:
+    """Answer like Open-Meteo: one forecast per requested latitude."""
+    count = len(request.url.params["latitude"].split(","))
+    body = [location() for _ in range(count)]
+    return httpx.Response(200, json=body[0] if count == 1 else body)
+
+
+def test_fetch_asks_for_all_points_in_one_request() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return echo_locations(request)
+
+    forecasts = fetch_forecasts(
+        [(53.3498, -6.2603), (53.2707, -9.0568)], hours=24, client=fake_api(handler)
+    )
+
+    assert len(forecasts) == 2
+    assert len(seen) == 1
+    params = seen[0].url.params
+    assert params["latitude"] == "53.35,53.27"
+    assert params["longitude"] == "-6.26,-9.06"
+    assert params["wind_speed_unit"] == "mph"
+    assert params["forecast_hours"] == "24"
+
+
+def test_many_points_are_split_into_batches() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return echo_locations(request)
+
+    points = [(50 + i / 100, -6.0) for i in range(250)]
+    forecasts = fetch_forecasts(points, hours=24, client=fake_api(handler))
+
+    assert len(forecasts) == 250
+    assert [len(r.url.params["latitude"].split(",")) for r in seen] == [100, 100, 50]
+
+
+def test_fetch_opens_its_own_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    transport = httpx.MockTransport(echo_locations)
+    real_client = httpx.Client
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kwargs: real_client(**{**kwargs, "transport": transport})
+    )
+
+    assert len(fetch_forecasts([(53.35, -6.26)], hours=24)) == 1
