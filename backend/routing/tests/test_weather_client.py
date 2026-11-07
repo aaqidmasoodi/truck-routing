@@ -3,11 +3,17 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from django.core.cache import cache
 
 from routing.clients.weather import Forecast, WeatherError, fetch_forecasts, parse_forecasts
 
 HOUR = 3600
 START = 1_794_052_800  # 2026-11-07 12:00 UTC
+
+
+@pytest.fixture(autouse=True)
+def empty_cache() -> None:
+    cache.clear()
 
 
 def location(**hourly: list[float | None]) -> dict[str, object]:
@@ -120,9 +126,7 @@ def test_fetch_asks_for_all_points_in_one_request() -> None:
         seen.append(request)
         return echo_locations(request)
 
-    forecasts = fetch_forecasts(
-        [(53.3498, -6.2603), (53.2707, -9.0568)], hours=24, client=fake_api(handler)
-    )
+    forecasts = fetch_forecasts([(53.3498, -6.2603), (53.2707, -9.0568)], client=fake_api(handler))
 
     assert len(forecasts) == 2
     assert len(seen) == 1
@@ -130,7 +134,7 @@ def test_fetch_asks_for_all_points_in_one_request() -> None:
     assert params["latitude"] == "53.35,53.27"
     assert params["longitude"] == "-6.26,-9.06"
     assert params["wind_speed_unit"] == "mph"
-    assert params["forecast_hours"] == "24"
+    assert params["forecast_hours"] == "96"
 
 
 def test_many_points_are_split_into_batches() -> None:
@@ -141,7 +145,7 @@ def test_many_points_are_split_into_batches() -> None:
         return echo_locations(request)
 
     points = [(50 + i / 100, -6.0) for i in range(250)]
-    forecasts = fetch_forecasts(points, hours=24, client=fake_api(handler))
+    forecasts = fetch_forecasts(points, client=fake_api(handler))
 
     assert len(forecasts) == 250
     assert [len(r.url.params["latitude"].split(",")) for r in seen] == [100, 100, 50]
@@ -154,7 +158,7 @@ def test_fetch_opens_its_own_client(monkeypatch: pytest.MonkeyPatch) -> None:
         httpx, "Client", lambda **kwargs: real_client(**{**kwargs, "transport": transport})
     )
 
-    assert len(fetch_forecasts([(53.35, -6.26)], hours=24)) == 1
+    assert len(fetch_forecasts([(53.35, -6.26)])) == 1
 
 
 @pytest.mark.parametrize(
@@ -169,7 +173,7 @@ def test_fetch_opens_its_own_client(monkeypatch: pytest.MonkeyPatch) -> None:
 )
 def test_bad_responses_raise_weather_error(response: httpx.Response) -> None:
     with pytest.raises(WeatherError):
-        fetch_forecasts([(53.35, -6.26), (53.27, -9.06)], 24, client=fake_api(lambda r: response))
+        fetch_forecasts([(53.35, -6.26), (53.27, -9.06)], client=fake_api(lambda r: response))
 
 
 def test_network_failure_raises_weather_error() -> None:
@@ -177,4 +181,44 @@ def test_network_failure_raises_weather_error() -> None:
         raise httpx.ConnectTimeout("no answer", request=request)
 
     with pytest.raises(WeatherError):
-        fetch_forecasts([(53.35, -6.26)], 24, client=fake_api(handler))
+        fetch_forecasts([(53.35, -6.26)], client=fake_api(handler))
+
+
+def counting_api(calls: list[int]) -> httpx.Client:
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(len(request.url.params["latitude"].split(",")))
+        return echo_locations(request)
+
+    return fake_api(handler)
+
+
+def test_repeat_lookups_come_from_the_cache() -> None:
+    calls: list[int] = []
+    api = counting_api(calls)
+
+    fetch_forecasts([(53.35, -6.26), (53.27, -9.06)], client=api)
+    fetch_forecasts([(53.35, -6.26), (53.27, -9.06)], client=api)
+
+    assert calls == [2]
+
+
+def test_only_new_places_are_fetched() -> None:
+    calls: list[int] = []
+    api = counting_api(calls)
+
+    fetch_forecasts([(53.35, -6.26)], client=api)
+    forecasts = fetch_forecasts([(53.35, -6.26), (53.27, -9.06)], client=api)
+
+    assert calls == [1, 1]
+    assert len(forecasts) == 2
+
+
+def test_nearby_points_share_one_forecast() -> None:
+    calls: list[int] = []
+
+    forecasts = fetch_forecasts(
+        [(53.3501, -6.2601), (53.3502, -6.2599)], client=counting_api(calls)
+    )
+
+    assert calls == [1]
+    assert forecasts[0] is forecasts[1]

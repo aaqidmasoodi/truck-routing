@@ -13,9 +13,11 @@ from typing import Any
 
 import httpx
 from django.conf import settings
+from django.core.cache import cache
 
 from ..polyline import Point
 from ..risk import Conditions
+from .cache_keys import cache_key
 from .http import new_client
 
 MM_PER_INCH = 25.4
@@ -24,6 +26,9 @@ HOUR = 3600
 # Open-Meteo takes many locations per request; this keeps the URL a sensible length.
 LOCATIONS_PER_REQUEST = 100
 VARIABLES = "wind_speed_10m,rain,showers,snowfall"
+# Departure can be up to 48 hours away and the drive can take two more days.
+HORIZON_HOURS = 96
+CACHE_SECONDS = 30 * 60
 
 
 class WeatherError(Exception):
@@ -90,17 +95,30 @@ def rounded(point: Point) -> Point:
     return (round(point[0], 2), round(point[1], 2))
 
 
-def fetch_forecasts(
-    points: Sequence[Point], hours: int, client: httpx.Client | None = None
-) -> list[Forecast]:
-    """Hourly forecasts for each point, in the same order, starting this hour."""
-    if client is not None:
-        return _fetch_all(client, points, hours)
-    with new_client() as http:
-        return _fetch_all(http, points, hours)
+def fetch_forecasts(points: Sequence[Point], client: httpx.Client | None = None) -> list[Forecast]:
+    """Hourly forecasts for each point, in the same order, from this hour on.
+
+    Nearby points share a forecast (see `rounded`), and anything fetched in the
+    last half hour comes from the cache, so only new places are requested.
+    """
+    keys = {rounded(point): cache_key("forecast", f"{rounded(point)}") for point in points}
+    known: dict[str, Forecast] = cache.get_many(list(keys.values()))
+    missing = [place for place, key in keys.items() if key not in known]
+
+    if missing:
+        if client is not None:
+            fresh = _fetch_all(client, missing)
+        else:
+            with new_client() as http:
+                fresh = _fetch_all(http, missing)
+        new = {keys[place]: forecast for place, forecast in zip(missing, fresh, strict=True)}
+        cache.set_many(new, CACHE_SECONDS)
+        known |= new
+
+    return [known[keys[rounded(point)]] for point in points]
 
 
-def _fetch_all(http: httpx.Client, points: Sequence[Point], hours: int) -> list[Forecast]:
+def _fetch_all(http: httpx.Client, points: Sequence[Point]) -> list[Forecast]:
     forecasts: list[Forecast] = []
     for chunk in batched(points, LOCATIONS_PER_REQUEST):
         try:
@@ -113,7 +131,7 @@ def _fetch_all(http: httpx.Client, points: Sequence[Point], hours: int) -> list[
                     "wind_speed_unit": "mph",
                     "timeformat": "unixtime",
                     "past_hours": 1,
-                    "forecast_hours": hours,
+                    "forecast_hours": HORIZON_HOURS,
                 },
             )
             response.raise_for_status()
