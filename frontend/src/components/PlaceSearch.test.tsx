@@ -25,6 +25,19 @@ describe('PlaceSearch', () => {
     expect(onChange).toHaveBeenCalledWith(denver)
   })
 
+  it('searches once the user stops typing', async () => {
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => Response.json([denver]))
+    render(<PlaceSearch label="From" value={null} onChange={() => {}} />)
+
+    await userEvent.type(screen.getByLabelText('From'), 'Denver')
+    await screen.findByText('Denver, Colorado, United States')
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith('/api/places/?q=Denver', expect.anything())
+  })
+
   it('waits for at least two letters before searching', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch')
     render(<PlaceSearch label="From" value={null} onChange={() => {}} />)
