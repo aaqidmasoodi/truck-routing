@@ -156,4 +156,10 @@ GEOCODING_URL = os.environ.get("GEOCODING_URL", "https://geocoding-api.open-mete
 HTTP_TIMEOUT_SECONDS = float(os.environ.get("HTTP_TIMEOUT_SECONDS", "10"))
 HTTP_USER_AGENT = "truck-routing/0.1 (+https://github.com/aaqidmasoodi/truck-routing)"
 
-ROUTING_URL = os.environ.get("ROUTING_URL", "https://router.project-osrm.org/route/v1/driving")
+# OSRM servers to try in order. Both public ones are free but best effort, so if the
+# first is slow or down the second gets a go.
+ROUTING_URLS = os.environ.get(
+    "ROUTING_URLS",
+    "https://routing.openstreetmap.de/routed-car/route/v1/driving,"
+    "https://router.project-osrm.org/route/v1/driving",
+).split(",")

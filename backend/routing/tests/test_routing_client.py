@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 import pytest
@@ -146,3 +147,51 @@ def test_routes_and_cache_hits_are_logged(caplog: pytest.LogCaptureFixture) -> N
 
     assert "route-1: 100.0 mi, 90 min, 2 points" in caplog.text
     assert "route cache hit" in caplog.text
+
+
+FIRST = "https://first.example/route/v1/driving"
+SECOND = "https://second.example/route/v1/driving"
+
+
+def test_falls_back_to_the_next_server(settings: Any) -> None:
+    settings.ROUTING_URLS = [FIRST, SECOND]
+    hosts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        hosts.append(request.url.host)
+        if request.url.host == "first.example":
+            raise httpx.ReadTimeout("slow", request=request)
+        return httpx.Response(200, json=OSRM_RESPONSE)
+
+    routes = find_routes(DENVER, CHICAGO, client=fake_api(handler))
+
+    assert len(routes) == 2
+    assert hosts == ["first.example", "second.example"]
+
+
+def test_no_route_does_not_try_other_servers(settings: Any) -> None:
+    settings.ROUTING_URLS = [FIRST, SECOND]
+    hosts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        hosts.append(request.url.host)
+        return httpx.Response(400, json={"code": "NoRoute"})
+
+    with pytest.raises(NoRouteFound):
+        find_routes(DENVER, CHICAGO, client=fake_api(handler))
+
+    assert hosts == ["first.example"]
+
+
+def test_fails_when_every_server_fails(settings: Any) -> None:
+    settings.ROUTING_URLS = [FIRST, SECOND]
+
+    with pytest.raises(RoutingError):
+        find_routes(DENVER, CHICAGO, client=fake_api(lambda request: httpx.Response(503)))
+
+
+def test_fails_cleanly_with_no_servers(settings: Any) -> None:
+    settings.ROUTING_URLS = []
+
+    with pytest.raises(RoutingError):
+        find_routes(DENVER, CHICAGO, client=fake_api(lambda request: httpx.Response(503)))

@@ -60,21 +60,34 @@ def find_routes(
         return cached
 
     if client is not None:
-        routes = _fetch(client, origin, destination)
+        routes = _try_each_server(client, origin, destination)
     else:
         with new_client() as http:
-            routes = _fetch(http, origin, destination)
+            routes = _try_each_server(http, origin, destination)
 
     cache.set(key, routes, CACHE_SECONDS)
     return routes
 
 
-def _fetch(http: httpx.Client, origin: Point, destination: Point) -> list[Route]:
+def _try_each_server(http: httpx.Client, origin: Point, destination: Point) -> list[Route]:
+    last_error = RoutingError("No routing servers configured")
+    for base_url in settings.ROUTING_URLS:
+        try:
+            return _fetch(http, base_url.strip(), origin, destination)
+        except NoRouteFound:
+            raise
+        except RoutingError as error:
+            logger.warning("routing server %s failed, trying the next one", base_url)
+            last_error = error
+    raise last_error
+
+
+def _fetch(http: httpx.Client, base_url: str, origin: Point, destination: Point) -> list[Route]:
     # OSRM wants longitude first.
     coordinates = ";".join(f"{lon},{lat}" for lat, lon in (origin, destination))
     try:
         response = http.get(
-            f"{settings.ROUTING_URL}/{coordinates}",
+            f"{base_url}/{coordinates}",
             params={
                 "alternatives": 3,
                 "overview": "full",
