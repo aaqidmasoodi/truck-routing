@@ -35,9 +35,30 @@ describe('RouteOptions checkpoints', () => {
     duration_minutes: 60,
     points: [],
     checkpoints: [
-      { latitude: 0, longitude: 0, mile: 0, segment_miles: 12.5, eta: '2026-11-09T08:00:00Z' },
-      { latitude: 0, longitude: 0, mile: 25, segment_miles: 25, eta: '2026-11-09T08:25:00Z' },
-      { latitude: 0, longitude: 0, mile: 60, segment_miles: 17.5, eta: '2026-11-09T09:00:00Z' },
+      {
+        latitude: 0,
+        longitude: 0,
+        mile: 0,
+        segment_miles: 12.5,
+        eta: '2026-11-09T08:00:00Z',
+        weather: null,
+      },
+      {
+        latitude: 0,
+        longitude: 0,
+        mile: 25,
+        segment_miles: 25,
+        eta: '2026-11-09T08:25:00Z',
+        weather: null,
+      },
+      {
+        latitude: 0,
+        longitude: 0,
+        mile: 60,
+        segment_miles: 17.5,
+        eta: '2026-11-09T09:00:00Z',
+        weather: null,
+      },
     ],
   }
 
