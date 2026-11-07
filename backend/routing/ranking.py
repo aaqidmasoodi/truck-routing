@@ -94,7 +94,10 @@ def _number(value: float) -> str:
 def why_ahead(best: RouteScore, other: RouteScore) -> str:
     """The first ranking rule that puts `best` ahead of `other`, in plain words."""
     if round(best.no_travel_miles, 2) < round(other.no_travel_miles, 2):
-        return f"Avoids {_number(other.no_travel_miles)} mi of No Travel weather"
+        if best.no_travel_miles == 0:
+            return f"Avoids {_number(other.no_travel_miles)} mi of No Travel weather"
+        fewer = other.no_travel_miles - best.no_travel_miles
+        return f"{_number(fewer)} fewer miles of No Travel weather"
     if round(best.severe_miles, 2) < round(other.severe_miles, 2):
         return f"{_number(other.severe_miles - best.severe_miles)} fewer miles of Severe weather"
     if round(best.high_miles, 2) < round(other.high_miles, 2):
