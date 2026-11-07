@@ -9,6 +9,11 @@ Thresholds come straight from the assessment brief:
 Where two bands share an edge (rain at 0.25, for example) the value goes into the
 higher band, the same way wind works. The top of the Severe band is inclusive
 because the brief only says "more than" for No Travel.
+
+Heavier loads make wind worse:
+
+    Wind 45-54 mph with more than 30,000 lb  -> No Travel
+    Wind 35-44 mph with more than 40,000 lb  -> Severe
 """
 
 from enum import IntEnum
@@ -68,3 +73,13 @@ def snow_risk(inches_per_hour: float) -> RiskLevel:
     if inches_per_hour <= 3.0:
         return RiskLevel.SEVERE
     return RiskLevel.NO_TRAVEL
+
+
+def wind_risk_for_load(speed_mph: float, weight_lb: float) -> RiskLevel:
+    _require_non_negative(weight_lb, "Load weight")
+    level = wind_risk(speed_mph)
+    if level == RiskLevel.SEVERE and weight_lb > 30_000:
+        return RiskLevel.NO_TRAVEL
+    if level == RiskLevel.HIGH and weight_lb > 40_000:
+        return RiskLevel.SEVERE
+    return level
