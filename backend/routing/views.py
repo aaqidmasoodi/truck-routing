@@ -1,15 +1,18 @@
 import logging
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from .checkpoints import checkpoints_for_route
 from .clients.geocoding import GeocodingError, search_places
 from .clients.routing import NoRouteFound, RoutingError, find_routes
 from .risk import Conditions, RiskLevel, checkpoint_risk
 from .serializers import (
     CheckpointRiskInput,
+    CheckpointSerializer,
     PlaceQuery,
     PlaceSerializer,
     RouteRequest,
@@ -100,4 +103,16 @@ def routes(request: Request) -> Response:
             {"detail": "Route planning is unavailable right now. Try again in a moment."},
             status=status.HTTP_502_BAD_GATEWAY,
         )
-    return Response(RouteSerializer(found, many=True).data)
+    spacing = form.validated_data["spacing_miles"]
+    departure = form.validated_data.get("departure") or timezone.now()
+    return Response(
+        [
+            {
+                **RouteSerializer(route).data,
+                "checkpoints": CheckpointSerializer(
+                    checkpoints_for_route(route, spacing, departure), many=True
+                ).data,
+            }
+            for route in found
+        ]
+    )
