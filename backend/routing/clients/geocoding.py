@@ -38,7 +38,13 @@ def parse_places(payload: dict[str, Any]) -> list[Place]:
 
 
 def search_places(query: str, count: int = 5, client: httpx.Client | None = None) -> list[Place]:
-    http = client or httpx.Client(timeout=settings.HTTP_TIMEOUT_SECONDS)
+    if client is not None:
+        return _search(client, query, count)
+    with httpx.Client(timeout=settings.HTTP_TIMEOUT_SECONDS) as http:
+        return _search(http, query, count)
+
+
+def _search(http: httpx.Client, query: str, count: int) -> list[Place]:
     response = http.get(
         settings.GEOCODING_URL,
         params={"name": query, "count": count, "language": "en", "format": "json"},

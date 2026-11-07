@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 import httpx
+import pytest
 
 from routing.clients.geocoding import Place, parse_places, search_places
 
@@ -51,3 +52,13 @@ def test_search_sends_the_query_and_returns_places() -> None:
     assert [place.name for place in places] == ["Denver"]
     assert seen[0].url.params["name"] == "Denv"
     assert seen[0].url.params["count"] == "3"
+
+
+def test_search_opens_its_own_client_when_none_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={}))
+    real_client = httpx.Client
+    monkeypatch.setattr(
+        httpx, "Client", lambda **kwargs: real_client(transport=transport, **kwargs)
+    )
+
+    assert search_places("Nowhere") == []
