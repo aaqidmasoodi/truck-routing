@@ -3,6 +3,7 @@ import AppBar from '@mui/material/AppBar'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import Container from '@mui/material/Container'
+import Link from '@mui/material/Link'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import { getHealth } from './api/client'
@@ -44,6 +45,12 @@ function App() {
       </AppBar>
       <Container sx={{ py: 4 }}>
         <TripPlanner />
+        <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 3 }}>
+          Routes by <Link href="https://project-osrm.org">OSRM</Link>, map data ©{' '}
+          <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Link>.
+          Places by <Link href="https://open-meteo.com">Open-Meteo</Link>, based on{' '}
+          <Link href="https://www.geonames.org">GeoNames</Link>.
+        </Typography>
       </Container>
     </Box>
   )
