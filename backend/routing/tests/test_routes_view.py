@@ -19,6 +19,16 @@ TRIP = {
 ROUTE = Route("route-1", 1003.2, 905.5, [(39.74, -104.98), (41.88, -87.63)])
 
 
+@pytest.fixture(autouse=True)
+def no_real_weather(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests never call the real forecast service; ones that care stub it themselves."""
+
+    def unavailable(points: list[Point]) -> list[Forecast]:
+        raise WeatherError("not in tests")
+
+    monkeypatch.setattr(views, "fetch_forecasts", unavailable)
+
+
 def post(client: Client, body: dict[str, Any]) -> Any:
     return client.post(reverse("routes"), body, content_type="application/json")
 
