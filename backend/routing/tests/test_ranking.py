@@ -1,6 +1,6 @@
 import pytest
 
-from routing.ranking import RouteScore, Segment, rank_routes, score_route
+from routing.ranking import RouteScore, Segment, rank_routes, score_route, why_ahead
 from routing.risk import RiskLevel
 
 LOW, HIGH, SEVERE = RiskLevel.LOW, RiskLevel.HIGH, RiskLevel.SEVERE
@@ -98,3 +98,24 @@ def test_any_no_travel_miles_rank_below_severe_miles() -> None:
     stormy = make("stormy", severe=40, high=30, avg=2.5)
 
     assert ids(rank_routes([blocked, stormy])) == ["stormy", "blocked"]
+
+
+@pytest.mark.parametrize(
+    ("best", "other", "reason"),
+    [
+        (
+            make("a"),
+            RouteScore("b", 0, 0, 0, 60, no_travel_miles=3),
+            "Avoids 3 mi of No Travel weather",
+        ),
+        (make("a", severe=2), make("b", severe=14.5), "12.5 fewer miles of Severe weather"),
+        (make("a", high=5), make("b", high=15), "10 fewer miles of High risk weather"),
+        (make("a", avg=0.5), make("b", avg=1.25), "Lower average risk (0.50 vs 1.25)"),
+        (make("a", minutes=50), make("b", minutes=65), "15 min faster"),
+        (make("a"), make("b"), "Same risk and time"),
+    ],
+)
+def test_why_ahead_names_the_deciding_rule(
+    best: RouteScore, other: RouteScore, reason: str
+) -> None:
+    assert why_ahead(best, other) == reason
