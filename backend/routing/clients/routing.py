@@ -8,11 +8,13 @@ from typing import Any
 
 import httpx
 from django.conf import settings
+from django.core.cache import cache
 
 from ..polyline import Point, decode
 from .http import new_client
 
 METERS_PER_MILE = 1609.344
+CACHE_SECONDS = 60 * 60
 
 
 class RoutingError(Exception):
@@ -47,10 +49,20 @@ def find_routes(
     origin: Point, destination: Point, client: httpx.Client | None = None
 ) -> list[Route]:
     """Up to three driving routes. OSRM only adds alternatives when it finds sensible ones."""
+    # About 10 m of rounding, so picking the same city twice reuses the result.
+    key = "routes:" + ";".join(f"{lat:.4f},{lon:.4f}" for lat, lon in (origin, destination))
+    cached: list[Route] | None = cache.get(key)
+    if cached is not None:
+        return cached
+
     if client is not None:
-        return _fetch(client, origin, destination)
-    with new_client() as http:
-        return _fetch(http, origin, destination)
+        routes = _fetch(client, origin, destination)
+    else:
+        with new_client() as http:
+            routes = _fetch(http, origin, destination)
+
+    cache.set(key, routes, CACHE_SECONDS)
+    return routes
 
 
 def _fetch(http: httpx.Client, origin: Point, destination: Point) -> list[Route]:

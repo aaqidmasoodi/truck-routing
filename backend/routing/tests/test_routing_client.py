@@ -2,8 +2,15 @@ from collections.abc import Callable
 
 import httpx
 import pytest
+from django.core.cache import cache
 
 from routing.clients.routing import NoRouteFound, RoutingError, find_routes, parse_routes
+
+
+@pytest.fixture(autouse=True)
+def empty_cache() -> None:
+    cache.clear()
+
 
 # Two tiny routes in the shape OSRM returns them (geometries=polyline6).
 OSRM_RESPONSE = {
@@ -100,3 +107,31 @@ def test_network_failure_raises_routing_error() -> None:
 
     with pytest.raises(RoutingError):
         find_routes(DENVER, CHICAGO, client=fake_api(handler))
+
+
+def test_same_trip_is_served_from_cache() -> None:
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=OSRM_RESPONSE)
+
+    api = fake_api(handler)
+    find_routes(DENVER, CHICAGO, client=api)
+    find_routes((39.740001, -104.980001), CHICAGO, client=api)
+
+    assert len(calls) == 1
+
+
+def test_reverse_trip_is_a_different_lookup() -> None:
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=OSRM_RESPONSE)
+
+    api = fake_api(handler)
+    find_routes(DENVER, CHICAGO, client=api)
+    find_routes(CHICAGO, DENVER, client=api)
+
+    assert len(calls) == 2
