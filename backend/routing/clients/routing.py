@@ -3,6 +3,7 @@
 Route data comes from OpenStreetMap, (c) OpenStreetMap contributors.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,6 +13,8 @@ from django.core.cache import cache
 
 from ..polyline import Point, decode
 from .http import new_client
+
+logger = logging.getLogger(__name__)
 
 METERS_PER_MILE = 1609.344
 CACHE_SECONDS = 60 * 60
@@ -53,6 +56,7 @@ def find_routes(
     key = "routes:" + ";".join(f"{lat:.4f},{lon:.4f}" for lat, lon in (origin, destination))
     cached: list[Route] | None = cache.get(key)
     if cached is not None:
+        logger.debug("route cache hit for %s", key)
         return cached
 
     if client is not None:
@@ -88,10 +92,20 @@ def _fetch(http: httpx.Client, origin: Point, destination: Point) -> list[Route]
             raise RoutingError(f"Routing service said {code!r}")
         routes = parse_routes(payload)
     except httpx.HTTPError as error:
+        logger.warning("routing %s failed: %s", coordinates, error)
         raise RoutingError(f"Routing request failed: {error}") from error
     except (ValueError, KeyError, TypeError) as error:
+        logger.warning("routing %s returned an unexpected response: %s", coordinates, error)
         raise RoutingError(f"Unexpected routing response: {error}") from error
 
     if not routes:
         raise NoRouteFound("No route between these places")
+    for route in routes:
+        logger.debug(
+            "%s: %.1f mi, %.0f min, %d points",
+            route.id,
+            route.distance_miles,
+            route.duration_minutes,
+            len(route.points),
+        )
     return routes

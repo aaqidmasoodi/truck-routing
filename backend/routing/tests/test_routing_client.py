@@ -135,3 +135,14 @@ def test_reverse_trip_is_a_different_lookup() -> None:
     find_routes(CHICAGO, DENVER, client=api)
 
     assert len(calls) == 2
+
+
+def test_routes_and_cache_hits_are_logged(caplog: pytest.LogCaptureFixture) -> None:
+    api = fake_api(lambda request: httpx.Response(200, json=OSRM_RESPONSE))
+
+    with caplog.at_level("DEBUG", logger="routing.clients.routing"):
+        find_routes(DENVER, CHICAGO, client=api)
+        find_routes(DENVER, CHICAGO, client=api)
+
+    assert "route-1: 100.0 mi, 90 min, 2 points" in caplog.text
+    assert "route cache hit" in caplog.text
