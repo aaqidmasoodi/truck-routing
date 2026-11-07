@@ -1,5 +1,6 @@
 """Checkpoints along a route, where the weather gets checked."""
 
+import logging
 from bisect import bisect_left
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -7,8 +8,11 @@ from datetime import datetime, timedelta
 from itertools import accumulate, pairwise
 from math import ceil
 
+from .clients.routing import Route
 from .geo import miles_between
 from .polyline import Point
+
+logger = logging.getLogger(__name__)
 
 SPACINGS_MILES = (10, 25, 50)
 
@@ -107,4 +111,20 @@ def schedule(
                 eta=departure + timedelta(minutes=duration_minutes * share),
             )
         )
+    return scheduled
+
+
+def checkpoints_for_route(
+    route: Route, spacing_miles: float, departure: datetime
+) -> list[ScheduledCheckpoint]:
+    placed = place_checkpoints(route.points, spacing_miles, road_miles=route.distance_miles)
+    scheduled = schedule(placed, departure, route.duration_minutes)
+    logger.debug(
+        "%s: %d checkpoints every %s mi, leaving %s, arriving %s",
+        route.id,
+        len(scheduled),
+        spacing_miles,
+        departure.isoformat(),
+        scheduled[-1].eta.isoformat(),
+    )
     return scheduled

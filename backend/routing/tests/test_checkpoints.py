@@ -4,11 +4,13 @@ import pytest
 
 from routing.checkpoints import (
     Checkpoint,
+    checkpoints_for_route,
     distances_along,
     place_checkpoints,
     point_at,
     schedule,
 )
+from routing.clients.routing import Route
 from routing.polyline import Point
 
 # Straight north along the meridian: each degree is about 69.1 miles.
@@ -151,3 +153,16 @@ def test_zero_length_route_arrives_at_departure() -> None:
 
 def test_nothing_to_schedule() -> None:
     assert schedule([], LEAVING, duration_minutes=10) == []
+
+
+def test_route_checkpoints_use_road_miles_and_drive_time(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    route = Route("route-1", distance_miles=150, duration_minutes=180, points=NORTH)
+
+    with caplog.at_level("DEBUG", logger="routing.checkpoints"):
+        checkpoints = checkpoints_for_route(route, spacing_miles=50, departure=LEAVING)
+
+    assert [c.mile for c in checkpoints] == [0, 50, 100, 150]
+    assert checkpoints[-1].eta == LEAVING + timedelta(hours=3)
+    assert "route-1: 4 checkpoints every 50 mi" in caplog.text
