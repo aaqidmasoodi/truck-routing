@@ -2,7 +2,7 @@ import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
 import type { Checkpoint } from '../api/client'
-import { formatArrival, formatMiles } from '../format'
+import { formatArrival, formatMiles, formatWeather } from '../format'
 
 interface CheckpointListProps {
   checkpoints: Checkpoint[]
@@ -23,7 +23,7 @@ function CheckpointList({ checkpoints }: CheckpointListProps) {
         <ListItem key={checkpoint.mile} disableGutters divider={index < checkpoints.length - 1}>
           <ListItemText
             primary={placeName(index, checkpoints.length)}
-            secondary={`${formatMiles(checkpoint.mile)} in`}
+            secondary={`${formatMiles(checkpoint.mile)} in · ${formatWeather(checkpoint.weather)}`}
           />
           <ListItemText
             primary={formatArrival(checkpoint.eta, departure)}

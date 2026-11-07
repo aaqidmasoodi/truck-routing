@@ -49,7 +49,7 @@ describe('RouteOptions checkpoints', () => {
         mile: 25,
         segment_miles: 25,
         eta: '2026-11-09T08:25:00Z',
-        weather: null,
+        weather: { wind_mph: 22, rain_in_per_hr: 0.15, snow_in_per_hr: 0 },
       },
       {
         latitude: 0,
@@ -70,7 +70,8 @@ describe('RouteOptions checkpoints', () => {
     expect(screen.getByText('Start')).toBeInTheDocument()
     expect(screen.getByText('Checkpoint 1')).toBeInTheDocument()
     expect(screen.getByText('Destination')).toBeInTheDocument()
-    expect(screen.getByText('25 mi in')).toBeInTheDocument()
+    expect(screen.getByText('25 mi in · 22 mph wind, 0.15 in/h rain')).toBeInTheDocument()
+    expect(screen.getByText('60 mi in · No forecast')).toBeInTheDocument()
   })
 
   it('keeps the list closed until asked', () => {
