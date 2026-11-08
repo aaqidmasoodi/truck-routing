@@ -62,12 +62,12 @@ describe('stretches', () => {
 
 describe('heatColour', () => {
   it('runs from light at zero to dark at the No Travel edge', () => {
-    expect(heatColour('wind', 0)).toBe('#e0f2f1')
-    expect(heatColour('wind', 55)).toBe('#00695c')
-    expect(heatColour('wind', 80)).toBe('#00695c')
+    expect(heatColour('wind', 0)).toBe('#b2dfdb')
+    expect(heatColour('wind', 55)).toBe('#004d40')
+    expect(heatColour('wind', 80)).toBe('#004d40')
   })
 
   it('blends in between', () => {
-    expect(heatColour('rain', 0.5)).toBe('#789dcf')
+    expect(heatColour('rain', 0.5)).toBe('#6493ce')
   })
 })

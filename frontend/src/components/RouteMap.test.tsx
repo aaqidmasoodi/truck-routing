@@ -1,4 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { checkpoint, plannedRoute, SEVERE } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
@@ -28,6 +29,12 @@ const routes = [
 
 function shapes(container: HTMLElement) {
   return [...container.querySelectorAll('path.leaflet-interactive')]
+}
+
+function bands(container: HTMLElement) {
+  return [...container.querySelectorAll('path:not(.leaflet-interactive)')].filter(
+    (path) => path.getAttribute('stroke-width') === '18',
+  )
 }
 
 function routeLines(container: HTMLElement) {
@@ -97,5 +104,30 @@ describe('RouteMap legend', () => {
 
     const legend = screen.getByRole('list', { name: 'Risk levels' })
     expect(legend).toHaveTextContent('LowModerateHighSevereNo Travel')
+  })
+})
+
+describe('RouteMap heatmap', () => {
+  it('lays a band along the selected route, one stretch per checkpoint', () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
+    )
+
+    expect(bands(container).map((band) => band.getAttribute('stroke'))).toEqual([
+      '#2e7d32',
+      '#c62828',
+      '#bdbdbd',
+    ])
+  })
+
+  it('switches the band to a weather layer', async () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Wind' }))
+
+    expect(bands(container)[0]?.getAttribute('stroke')).not.toBe('#2e7d32')
+    expect(screen.getByRole('img', { name: 'wind scale' })).toHaveTextContent('55+ mph')
   })
 })

@@ -63,10 +63,11 @@ export type HeatLayer = 'risk' | 'wind' | 'rain' | 'snow'
 
 // Where each scale tops out: the edge of No Travel for that condition.
 export const HEAT_TOP = { wind: 55, rain: 1, snow: 3 } as const
+// The light ends are deep enough to still show up on the pale basemap.
 const HEAT_RAMP = {
-  wind: ['#e0f2f1', '#00695c'],
-  rain: ['#e3f2fd', '#0d47a1'],
-  snow: ['#f3e5f5', '#4a148c'],
+  wind: ['#b2dfdb', '#004d40'],
+  rain: ['#bbdefb', '#0d47a1'],
+  snow: ['#e1bee7', '#4a148c'],
 } as const
 export const NO_DATA = '#bdbdbd'
 

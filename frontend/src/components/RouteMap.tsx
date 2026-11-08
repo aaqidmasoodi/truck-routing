@@ -1,12 +1,16 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import Box from '@mui/material/Box'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useTheme } from '@mui/material/styles'
 import type { PlannedRoute } from '../api/client'
+import type { HeatLayer } from '../heatmap'
 import { boundsOf, drawOrder, lineStyle, TILES, type LatLng } from '../map'
 import { routeName } from '../routes'
 import CheckpointMarkers from './CheckpointMarkers'
+import HeatBand from './HeatBand'
 import RiskLegend from './RiskLegend'
 
 interface RouteMapProps {
@@ -29,6 +33,7 @@ function FitToRoutes({ bounds }: { bounds: [LatLng, LatLng] }) {
 
 function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
   const theme = useTheme()
+  const [layer, setLayer] = useState<HeatLayer>('risk')
   const bounds = boundsOf(routes)
   const selected = routes.find((route) => route.id === selectedId)
   const first = routes[0]?.points
@@ -62,6 +67,7 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer url={TILES.url} attribution={TILES.attribution} />
+        {selected ? <HeatBand route={selected} layer={layer} /> : null}
         {drawOrder(routes, selectedId).map((route) => {
           const selected = route.id === selectedId
           return (
@@ -99,7 +105,27 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         ) : null}
         {bounds ? <FitToRoutes bounds={bounds} /> : null}
       </MapContainer>
-      <RiskLegend />
+      <ToggleButtonGroup
+        size="small"
+        exclusive
+        value={layer}
+        onChange={(_event, value: HeatLayer | null) => value && setLayer(value)}
+        aria-label="Colour the route by"
+        sx={{
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          zIndex: 1000, // above Leaflet's panes
+          bgcolor: 'm3.surfaceContainer',
+          boxShadow: 1,
+        }}
+      >
+        <ToggleButton value="risk">Risk</ToggleButton>
+        <ToggleButton value="wind">Wind</ToggleButton>
+        <ToggleButton value="rain">Rain</ToggleButton>
+        <ToggleButton value="snow">Snow</ToggleButton>
+      </ToggleButtonGroup>
+      <RiskLegend layer={layer} />
     </Box>
   )
 }
