@@ -3,8 +3,10 @@
 Route data comes from OpenStreetMap, (c) OpenStreetMap contributors.
 """
 
+import json
 import logging
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -124,23 +126,41 @@ def find_routes(
     return routes
 
 
+Fetcher = Callable[[httpx.Client, str, list[Point]], list[Route]]
+
+
+def _servers() -> list[tuple[str, Fetcher]]:
+    """The OSRM servers in order, then Valhalla as a last resort if one is set."""
+    servers: list[tuple[str, Fetcher]] = [
+        (url.strip(), _fetch) for url in settings.ROUTING_URLS if url.strip()
+    ]
+    if settings.VALHALLA_URL:
+        servers.append((settings.VALHALLA_URL.rstrip("/"), _fetch_valhalla))
+    return servers
+
+
 def _try_each_server(http: httpx.Client, origin: Point, destination: Point) -> list[Route]:
     last_error = RoutingError("No routing servers configured")
-    for base_url in settings.ROUTING_URLS:
+    for base_url, fetch in _servers():
         try:
-            routes = _fetch(http, base_url.strip(), [origin, destination])
+            routes = fetch(http, base_url, [origin, destination])
         except NoRouteFound:
             raise
         except RoutingError as error:
             logger.warning("routing server %s failed, trying the next one", base_url)
             last_error = error
             continue
-        return _add_detours(http, base_url.strip(), origin, destination, routes)
+        return _add_detours(http, base_url, fetch, origin, destination, routes)
     raise last_error
 
 
 def _add_detours(
-    http: httpx.Client, base_url: str, origin: Point, destination: Point, routes: list[Route]
+    http: httpx.Client,
+    base_url: str,
+    fetch: Fetcher,
+    origin: Point,
+    destination: Point,
+    routes: list[Route],
 ) -> list[Route]:
     """Top up to three routes by going through points either side of the straight line.
 
@@ -153,7 +173,7 @@ def _add_detours(
         if len(routes) >= TARGET_ROUTES:
             break
         try:
-            found = _fetch(http, base_url, [origin, via, destination])
+            found = fetch(http, base_url, [origin, via, destination])
         except RoutingError as error:
             logger.debug("detour through %s failed: %s", via, error)
             continue
@@ -267,4 +287,57 @@ def _fetch(http: httpx.Client, base_url: str, waypoints: list[Point]) -> list[Ro
             route.duration_minutes,
             len(route.points),
         )
+    return routes
+
+
+# Valhalla's codes for a place with no road nearby, or no road between the places.
+VALHALLA_NO_ROUTE = {170, 171, 442, 443}
+
+
+def _fetch_valhalla(http: httpx.Client, base_url: str, waypoints: list[Point]) -> list[Route]:
+    """Routes from a Valhalla server, used when every OSRM server has failed.
+
+    Valhalla has a truck profile, which suits the app better than OSRM's car profile,
+    but the public server is slower, so it's the fallback rather than the first choice.
+    """
+    last = len(waypoints) - 1
+    query: dict[str, Any] = {
+        # A detour point is passed through, never turned around at.
+        "locations": [
+            {"lat": lat, "lon": lon, **({"type": "through"} if 0 < i < last else {})}
+            for i, (lat, lon) in enumerate(waypoints)
+        ],
+        "costing": "truck",
+        "units": "miles",
+        "directions_type": "none",
+    }
+    if len(waypoints) == 2:
+        query["alternates"] = 2
+    try:
+        # No spaces: they'd go into the URL as "+", which Valhalla's JSON reader rejects.
+        compact = json.dumps(query, separators=(",", ":"))
+        response = http.get(f"{base_url}/route", params={"json": compact})
+        payload = response.json() if response.content else {}
+        if isinstance(payload, dict) and payload.get("error_code") in VALHALLA_NO_ROUTE:
+            raise NoRouteFound(payload.get("error", "No route between these places"))
+        response.raise_for_status()
+        trips = [payload["trip"]] + [item["trip"] for item in payload.get("alternates", [])]
+        routes = [
+            Route(
+                id=f"route-{number}",
+                distance_miles=float(trip["summary"]["length"]),
+                duration_minutes=float(trip["summary"]["time"]) / 60,
+                points=[point for leg in trip["legs"] for point in decode(leg["shape"], 6)],
+            )
+            for number, trip in enumerate(trips, start=1)
+        ]
+    except httpx.HTTPError as error:
+        logger.warning("Valhalla routing failed: %s", error)
+        raise RoutingError(f"Routing request failed: {error}") from error
+    except (ValueError, KeyError, TypeError) as error:
+        logger.warning("Valhalla returned an unexpected response: %s", error)
+        raise RoutingError(f"Unexpected routing response: {error}") from error
+
+    if not routes:
+        raise NoRouteFound("No route between these places")
     return routes

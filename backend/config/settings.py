@@ -204,6 +204,9 @@ ROUTING_URLS = os.environ.get(
     "https://router.project-osrm.org/route/v1/driving",
 ).split(",")
 
+# Valhalla, tried when every OSRM server has failed. Set it empty to turn it off.
+VALHALLA_URL = os.environ.get("VALHALLA_URL", "https://valhalla1.openstreetmap.de")
+
 WEATHER_URL = os.environ.get("WEATHER_URL", "https://api.open-meteo.com/v1/forecast")
 
 REST_FRAMEWORK = {
