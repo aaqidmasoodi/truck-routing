@@ -141,6 +141,29 @@ describe('TripPlanner', () => {
     expect(screen.getByRole('button', { name: 'Find routes' })).toBeDisabled()
   })
 
+  it('says what it is doing while it plans', async () => {
+    let answer: (response: Response) => void = () => {}
+    fakeApi(() => Response.json({}))
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = new URL(String(input), 'http://test')
+      if (url.pathname === '/api/places/') {
+        return Response.json([places[url.searchParams.get('q') ?? '']])
+      }
+      return new Promise<Response>((resolve) => {
+        answer = resolve
+      })
+    })
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Finding routes')
+    answer(Response.json(tripPlan([plannedRoute('route-1')])))
+    expect(await screen.findByText('1 route found, safest first')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('plans the trip when Enter is pressed', async () => {
     fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
     renderWithTheme(<TripPlanner />)

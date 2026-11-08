@@ -4,6 +4,7 @@ import Card from '@mui/material/Card'
 import Typography from '@mui/material/Typography'
 import { ApiError, planTrip, type Trip, type TripPlan } from '../api/client'
 import { debug } from '../debug'
+import PlanningPlaceholder from './PlanningPlaceholder'
 import PlanResults from './PlanResults'
 import TripForm from './TripForm'
 
@@ -50,6 +51,7 @@ function TripPlanner() {
           {lookup.message}
         </Alert>
       ) : null}
+      {lookup.state === 'loading' ? <PlanningPlaceholder /> : null}
       {lookup.state === 'done' ? <PlanResults plan={lookup.plan} /> : null}
     </Card>
   )
