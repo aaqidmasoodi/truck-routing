@@ -200,3 +200,27 @@ describe('RouteMap zooming to new routes', () => {
     expect(fitBounds.mock.calls[0]?.[1]).toMatchObject({ animate: false })
   })
 })
+
+describe('RouteMap credit line', () => {
+  function credit(container: HTMLElement) {
+    return container.querySelector('.leaflet-control-attribution') as HTMLElement
+  }
+
+  it('shows in the corner while a trip is being planned', () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={[]} selectedId="" onSelect={() => {}} />,
+    )
+
+    expect(credit(container)).toHaveTextContent('OpenStreetMap')
+    expect(credit(container)).not.toHaveStyle({ display: 'none' })
+  })
+
+  it('moves into the key once routes are showing', () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
+    )
+
+    expect(credit(container)).toHaveStyle({ display: 'none' })
+    expect(screen.getByRole('link', { name: 'Esri' })).toBeInTheDocument()
+  })
+})

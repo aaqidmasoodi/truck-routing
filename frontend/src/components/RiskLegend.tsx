@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Box from '@mui/material/Box'
+import Link from '@mui/material/Link'
 import ButtonBase from '@mui/material/ButtonBase'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
@@ -19,10 +20,17 @@ interface RiskLegendProps {
   bottom?: number
   /** On a phone the key starts as a small button, so it doesn't hide the route. */
   compact?: boolean
+  /** Show the map's data credit here, when it's hidden from the corner of the map. */
+  showCredit?: boolean
 }
 
 /** What the colours mean: advice for the overall view, real units for wind, rain, snow. */
-function RiskLegend({ layer = 'overall', bottom = 24, compact = false }: RiskLegendProps) {
+function RiskLegend({
+  layer = 'overall',
+  bottom = 24,
+  compact = false,
+  showCredit = false,
+}: RiskLegendProps) {
   // Always open on a big screen, even if the window started out phone-sized.
   const [opened, setOpen] = useState(false)
   const open = !compact || opened
@@ -99,6 +107,17 @@ function RiskLegend({ layer = 'overall', bottom = 24, compact = false }: RiskLeg
       {layer === 'wind' ? (
         <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 0.5 }}>
           Heavy loads go up a level in strong wind
+        </Typography>
+      ) : null}
+      {showCredit ? (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          component="p"
+          sx={{ mt: 0.75, fontSize: '0.65rem', maxWidth: 220 }}
+        >
+          Map © <Link href="https://www.esri.com">Esri</Link>, HERE, Garmin, ©{' '}
+          <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap</Link> contributors
         </Typography>
       ) : null}
     </Box>
