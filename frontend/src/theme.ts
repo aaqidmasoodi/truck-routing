@@ -72,7 +72,7 @@ const theme = createTheme({
       styleOverrides: { root: { borderRadius: 12 } },
     },
     MuiChip: {
-      styleOverrides: { root: { borderRadius: 8, height: 32 } },
+      styleOverrides: { root: { borderRadius: 8 }, sizeMedium: { height: 32 } },
     },
     MuiOutlinedInput: {
       styleOverrides: { root: { borderRadius: 4 } },
