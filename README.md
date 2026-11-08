@@ -135,6 +135,10 @@ bold and drawn on top, and it starts as the recommended route. Clicking a line o
 card selects it in both places. The map zooms to fit the routes for each new plan, and its
 code only loads once there are results, so the first page load stays small.
 
+The selected route's checkpoints are dots in their risk colour (grey when there's no
+forecast for that time), with a key in the corner. Clicking one shows when the truck gets
+there, the forecast, and why it got its level, for example "Severe because of wind".
+
 ## How routes are ranked
 
 Each checkpoint covers a stretch of road, and that stretch takes the checkpoint's risk
