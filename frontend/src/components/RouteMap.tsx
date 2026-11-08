@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import {
   CircleMarker,
@@ -56,19 +56,37 @@ interface RouteMapProps {
 function FitToRoutes({ bounds, inset }: { bounds: [LatLng, LatLng]; inset: number }) {
   const map = useMap()
   const key = bounds.flat().join(',')
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      map.invalidateSize()
-      // Fit the routes into the strip of map the sheet leaves free, keeping at least a
-      // little room even when the sheet covers most of the screen.
-      const free = map.getSize().y - 64 - 32
-      const covered = Math.max(0, Math.min(inset, free - MIN_VISIBLE))
-      map.fitBounds(bounds, { paddingTopLeft: [24, 64], paddingBottomRight: [24, covered + 32] })
-    }, SETTLE_MS)
-    return () => clearTimeout(timer)
+  const fitted = useRef<string | null>(null)
+
+  const fit = (animate: boolean) => {
+    map.invalidateSize()
+    // Fit the routes into the strip of map the sheet leaves free, keeping at least a
+    // little room even when the sheet covers most of the screen.
+    const free = map.getSize().y - 64 - 32
+    const covered = Math.max(0, Math.min(inset, free - MIN_VISIBLE))
+    map.fitBounds(bounds, {
+      paddingTopLeft: [24, 64],
+      paddingBottomRight: [24, covered + 32],
+      animate,
+    })
+  }
+
+  // New routes: go straight to them before the screen is drawn, so they never show up
+  // zoomed out on the world map first and then fly in.
+  useLayoutEffect(() => {
+    if (fitted.current === key) return
+    fitted.current = key
+    fit(false)
     // `key` stands in for `bounds`, which is a new array each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, key, inset])
+  }, [map, key])
+
+  // The visible area changed size (the phone sheet moved): let it settle, then glide over.
+  useEffect(() => {
+    const timer = setTimeout(() => fit(true), SETTLE_MS)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, inset])
   return null
 }
 

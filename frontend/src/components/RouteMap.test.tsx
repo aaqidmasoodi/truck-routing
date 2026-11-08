@@ -8,6 +8,7 @@ import RouteMap from './RouteMap'
 import { CONDITIONS, NO_FORECAST } from '../conditions'
 import { ThemeProvider } from '@mui/material/styles'
 import theme from '../theme'
+import { Map } from 'leaflet'
 
 const windy: CheckpointRisk = {
   level: SEVERE,
@@ -185,5 +186,17 @@ describe('RouteMap key when the screen grows', () => {
     )
 
     expect(screen.getByRole('list', { name: 'Driving conditions key' })).toBeInTheDocument()
+  })
+})
+
+describe('RouteMap zooming to new routes', () => {
+  it('goes straight to them without flying in from the world view', () => {
+    const fitBounds = vi.spyOn(Map.prototype, 'fitBounds')
+
+    renderWithTheme(<RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />)
+
+    // Straight away, before any timer has run, and without animating.
+    expect(fitBounds).toHaveBeenCalledTimes(1)
+    expect(fitBounds.mock.calls[0]?.[1]).toMatchObject({ animate: false })
   })
 })
