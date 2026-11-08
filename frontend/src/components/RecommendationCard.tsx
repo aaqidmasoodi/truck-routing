@@ -4,7 +4,7 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { TripPlan } from '../api/client'
 import { formatArrival, formatDuration, formatMiles } from '../format'
-import { arrival, routeName, timeCost, worstRisk } from '../routes'
+import { arrival, milesAt, routeName, timeCost, worstRisk } from '../routes'
 import RiskChip from './RiskChip'
 
 /** The answer to "which way should I go?", in a sentence or two. */
@@ -53,8 +53,11 @@ function RecommendationCard({ plan }: { plan: TripPlan }) {
           aria-label="Worst conditions"
           sx={{ alignItems: 'center', mt: 1, flexWrap: 'nowrap' }}
         >
-          <Typography variant="body2">Worst conditions on the way:</Typography>
+          <Typography variant="body2">Worst conditions:</Typography>
           <RiskChip level={worst} />
+          {worst && worst.value > 0 ? (
+            <Typography variant="body2">for {formatMiles(milesAt(best, worst.value))}</Typography>
+          ) : null}
         </Stack>
         {cost ? (
           <Typography variant="body2" sx={{ mt: 1 }}>
