@@ -1,16 +1,25 @@
 import { useState, type FormEvent } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Chip from '@mui/material/Chip'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
+import HistoryIcon from '@mui/icons-material/History'
 import PlaceIcon from '@mui/icons-material/Place'
 import RouteIcon from '@mui/icons-material/Route'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import TripOriginIcon from '@mui/icons-material/TripOrigin'
 import type { Trip } from '../api/client'
+import {
+  loadRecentTrips,
+  recentPlaces,
+  rememberTrip,
+  tripLabel,
+  type RecentTrip,
+} from '../recentTrips'
 import { checkDraft, emptyDraft, latestDeparture, toLocalInput, type TripDraft } from '../tripDraft'
 import PlaceSearch from './PlaceSearch'
 import SpacingPicker from './SpacingPicker'
@@ -31,6 +40,15 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
   const [now, setNow] = useState(() => new Date())
   const { trip, errors } = checkDraft(draft, now)
   const size = compact ? 'small' : 'medium'
+  const [recent, setRecent] = useState<RecentTrip[]>(loadRecentTrips)
+  const places = recentPlaces(recent)
+
+  /** Fill in both ends of a trip planned before. */
+  const reuse = ({ origin, destination }: RecentTrip) => {
+    setDraft((current) => ({ ...current, origin, destination }))
+    setNow(new Date())
+    onChange()
+  }
 
   const update = <K extends keyof TripDraft>(key: K, value: TripDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }))
@@ -50,10 +68,27 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const latest = checkDraft(draft, new Date())
-    if (latest.trip && !loading) {
+    if (latest.trip && !loading && draft.origin && draft.destination) {
+      setRecent((trips) =>
+        rememberTrip(trips, { origin: draft.origin!, destination: draft.destination! }),
+      )
       onSubmit(latest.trip, `${draft.origin?.name ?? ''} → ${draft.destination?.name ?? ''}`)
     }
   }
+
+  const swapButton = (
+    <Tooltip title="Swap start and destination">
+      <span>
+        <IconButton
+          aria-label="Swap start and destination"
+          onClick={swap}
+          disabled={!draft.origin && !draft.destination}
+        >
+          <SwapVertIcon />
+        </IconButton>
+      </span>
+    </Tooltip>
+  )
 
   const weight = (
     <TextField
@@ -99,16 +134,21 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
       noValidate
       sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}
     >
-      {/* Start above destination with a swap button beside them, like a map app. */}
+      {/* Phone: the swap button sits beside the two fields. Desktop: it has its own row
+          between them, so both fields use the panel's full width. */}
       <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-        <Stack spacing={compact ? 1.5 : 0} sx={{ flex: 1, minWidth: 0 }}>
+        <Stack spacing={compact ? 1.5 : 0.5} sx={{ flex: 1, minWidth: 0 }}>
           <PlaceSearch
             label="From"
             value={draft.origin}
             onChange={(place) => update('origin', place)}
             icon={<TripOriginIcon fontSize="small" color="primary" />}
             compact={compact}
+            suggestions={places}
           />
+          {compact ? null : (
+            <Box sx={{ display: 'flex', justifyContent: 'center' }}>{swapButton}</Box>
+          )}
           <PlaceSearch
             label="To"
             value={draft.destination}
@@ -116,21 +156,39 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
             error={errors.destination}
             icon={<PlaceIcon fontSize="small" sx={{ color: 'm3.tertiary' }} />}
             compact={compact}
+            suggestions={places}
           />
         </Stack>
-        <Tooltip title="Swap start and destination">
-          <span>
-            <IconButton
-              aria-label="Swap start and destination"
-              onClick={swap}
-              disabled={!draft.origin && !draft.destination}
-              sx={{ mb: compact ? 0 : 2.5 }}
-            >
-              <SwapVertIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
+        {compact ? swapButton : null}
       </Stack>
+      {recent.length > 0 ? (
+        // One line of recent trips; tap one to fill in both ends. Scrolls sideways if long.
+        <Stack
+          direction="row"
+          spacing={1}
+          aria-label="Recent trips"
+          sx={{
+            mt: compact ? 1 : 1.5,
+            mb: compact ? 0 : 0.5,
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
+          {recent.map((t) => (
+            <Chip
+              key={`${t.origin.latitude},${t.origin.longitude};${t.destination.latitude},${t.destination.longitude}`}
+              icon={<HistoryIcon />}
+              label={tripLabel(t, recent)}
+              title={`${t.origin.display_name} → ${t.destination.display_name}`}
+              onClick={() => reuse(t)}
+              size="small"
+              variant="outlined"
+              sx={{ flexShrink: 0 }}
+            />
+          ))}
+        </Stack>
+      ) : null}
       {compact ? (
         // Phone: weight and departure share a row, then the spacing on one short line.
         <Stack spacing={1.5} sx={{ mt: 1.5 }}>
@@ -145,7 +203,7 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
           />
         </Stack>
       ) : (
-        <Stack spacing={2} sx={{ mt: 0.5, pr: 5.5 }}>
+        <Stack spacing={2.5} sx={{ mt: 2.5 }}>
           {weight}
           {leaveAt}
           <SpacingPicker value={draft.spacing} onChange={(spacing) => update('spacing', spacing)} />

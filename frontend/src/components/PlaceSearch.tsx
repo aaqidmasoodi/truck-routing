@@ -16,6 +16,8 @@ interface PlaceSearchProps {
   icon?: ReactNode
   /** Smaller, for a phone screen. */
   compact?: boolean
+  /** Places to offer before anything is typed, like recent searches. */
+  suggestions?: Place[]
 }
 
 interface SearchResult {
@@ -27,7 +29,15 @@ interface SearchResult {
 const MIN_LETTERS = 2
 const TYPING_PAUSE_MS = 300
 
-function PlaceSearch({ label, value, onChange, error, icon, compact }: PlaceSearchProps) {
+function PlaceSearch({
+  label,
+  value,
+  onChange,
+  error,
+  icon,
+  compact,
+  suggestions = [],
+}: PlaceSearchProps) {
   const [input, setInput] = useState('')
   const [result, setResult] = useState<SearchResult>({ query: '', places: [], failed: false })
 
@@ -60,10 +70,14 @@ function PlaceSearch({ label, value, onChange, error, icon, compact }: PlaceSear
 
   const loading = ready && result.query !== query
   const failed = ready && !loading && result.failed
+  // Before any typing, offer the recent places to pick from.
+  const offeringRecent = !ready && !showingChoice && query === '' && suggestions.length > 0
 
   return (
     <Autocomplete
-      options={showingChoice ? [value] : ready ? result.places : []}
+      options={showingChoice ? [value] : ready ? result.places : offeringRecent ? suggestions : []}
+      groupBy={offeringRecent ? () => 'Recent' : undefined}
+      openOnFocus={offeringRecent}
       value={value}
       onChange={(_event, place) => onChange(place)}
       onInputChange={(_event, text) => setInput(text)}
@@ -78,10 +92,8 @@ function PlaceSearch({ label, value, onChange, error, icon, compact }: PlaceSear
           label={label}
           size={compact ? 'small' : 'medium'}
           error={failed || Boolean(error)}
-          // A compact field only makes room underneath when there's something to say.
-          helperText={
-            failed ? 'Place search is unavailable right now' : (error ?? (compact ? null : ' '))
-          }
+          // Only makes room underneath when there's something to say.
+          helperText={failed ? 'Place search is unavailable right now' : (error ?? null)}
           slotProps={{
             ...params.slotProps,
             input: {
