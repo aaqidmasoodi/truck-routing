@@ -127,6 +127,16 @@ count as Low, so the ranking falls back to drive time instead of failing.
 
 No road between the places gives a 404, and the routing service being down gives a 502.
 
+## Reading the results
+
+The results open with a recommendation card: which route to take, why in one line
+("30 fewer miles of High risk weather"), its distance, drive time and arrival, the worst
+risk on the way, and how much longer it takes than the fastest route when that's a
+different one. If every route has No Travel weather the card turns red and says so.
+
+Each route card has a risk strip, the route as one bar from start to finish with every
+stretch in its checkpoint's risk colour, so the routes can be compared at a glance.
+
 ## The map
 
 Routes are drawn with [Leaflet](https://leafletjs.com) on CARTO's light basemap

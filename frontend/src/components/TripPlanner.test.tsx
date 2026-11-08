@@ -83,8 +83,8 @@ describe('TripPlanner', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
 
     expect(await screen.findByText('2 routes found, safest first')).toBeInTheDocument()
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Take Route 2. 12 fewer miles of Severe weather.',
+    expect(screen.getByRole('region', { name: 'Recommendation' })).toHaveTextContent(
+      'Take Route 212 fewer miles of Severe weather.',
     )
     expect(planCall()).toMatchObject({ weight_lb: 36000, spacing_miles: 10 })
   })
@@ -158,7 +158,7 @@ describe('TripPlanner', () => {
     await pickTrip()
     await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
 
-    expect(await screen.findByText(/Every route runs into No Travel weather/)).toBeInTheDocument()
+    expect(await screen.findByText('No safe route right now')).toBeInTheDocument()
   })
 
   it('warns when part of the trip has no forecast', async () => {
