@@ -15,6 +15,8 @@ from .serializers import (
     PlaceQuery,
     PlaceSerializer,
     PlanRequest,
+    RiskLevelField,
+    RiskSerializer,
     TripPlanSerializer,
 )
 
@@ -26,13 +28,10 @@ def health(request: Request) -> Response:
     return Response({"status": "ok"})
 
 
-def _level(level: RiskLevel) -> dict[str, int | str]:
-    return {"value": level.value, "label": level.label}
-
-
 @api_view(["GET"])
 def risk_levels(request: Request) -> Response:
-    return Response([_level(level) for level in RiskLevel])
+    field = RiskLevelField()
+    return Response([field.to_representation(level) for level in RiskLevel])
 
 
 @api_view(["POST"])
@@ -51,15 +50,7 @@ def score_checkpoint(request: Request) -> Response:
         ),
         weight_lb=data["weight_lb"],
     )
-    return Response(
-        {
-            "level": _level(risk.level),
-            "wind": _level(risk.wind),
-            "rain": _level(risk.rain),
-            "snow": _level(risk.snow),
-            "causes": risk.causes,
-        }
-    )
+    return Response(RiskSerializer(risk).data)
 
 
 @api_view(["GET"])
