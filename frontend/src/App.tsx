@@ -6,7 +6,7 @@ import Container from '@mui/material/Container'
 import Link from '@mui/material/Link'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
-import { getHealth } from './api/client'
+import { apiUrl, getHealth } from './api/client'
 import TripPlanner from './components/TripPlanner'
 import { debug } from './debug'
 
@@ -61,7 +61,8 @@ function App() {
           Routes by <Link href="https://project-osrm.org">OSRM</Link>, map data ©{' '}
           <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Link>.
           Places by <Link href="https://open-meteo.com">Open-Meteo</Link>, based on{' '}
-          <Link href="https://www.geonames.org">GeoNames</Link>.
+          <Link href="https://www.geonames.org">GeoNames</Link>. ·{' '}
+          <Link href={apiUrl('/api/docs/')}>API docs</Link>
         </Typography>
       </Box>
     </Box>

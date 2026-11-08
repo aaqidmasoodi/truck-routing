@@ -34,8 +34,13 @@ export class ApiError extends Error {
   }
 }
 
+/** Full address of an API path, for links as well as requests. */
+export function apiUrl(path: string): string {
+  return `${API_URL}${path}`
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const url = `${API_URL}${path}`
+  const url = apiUrl(path)
   const response = await fetch(url, init)
   debug('api', init.method ?? 'GET', url, response.status)
   if (!response.ok) {

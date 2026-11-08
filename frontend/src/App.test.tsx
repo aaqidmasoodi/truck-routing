@@ -29,6 +29,14 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: 'OpenStreetMap contributors' })).toBeInTheDocument()
   })
 
+  it('links to the API docs', () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ status: 'ok' }))
+
+    render(<App />)
+
+    expect(screen.getByRole('link', { name: 'API docs' })).toHaveAttribute('href', '/api/docs/')
+  })
+
   it('shows the API as offline when the request fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network'))
 
