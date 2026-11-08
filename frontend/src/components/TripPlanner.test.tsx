@@ -88,6 +88,19 @@ describe('TripPlanner', () => {
     expect(planCall()).toMatchObject({ weight_lb: 36000, spacing_miles: 10 })
   })
 
+  it('swaps start and destination', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Swap start and destination' }))
+
+    expect(screen.getByLabelText('From')).toHaveValue('Chicago, Illinois, United States')
+    expect(screen.getByLabelText('To')).toHaveValue('Denver, Colorado, United States')
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+    expect(planCall().origin).toEqual({ latitude: 41.88, longitude: -87.63 })
+  })
+
   it('plans the trip when Enter is pressed', async () => {
     fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
     renderWithTheme(<TripPlanner />)

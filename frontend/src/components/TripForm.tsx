@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
+import Tooltip from '@mui/material/Tooltip'
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import type { Trip } from '../api/client'
 import { checkDraft, emptyDraft, type TripDraft } from '../tripDraft'
 import PlaceSearch from './PlaceSearch'
@@ -25,6 +28,15 @@ function TripForm({ loading, onSubmit, onChange }: TripFormProps) {
     onChange()
   }
 
+  const swap = () => {
+    setDraft((current) => ({
+      ...current,
+      origin: current.destination,
+      destination: current.origin,
+    }))
+    onChange()
+  }
+
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (trip && !loading) onSubmit(trip)
@@ -32,7 +44,11 @@ function TripForm({ loading, onSubmit, onChange }: TripFormProps) {
 
   return (
     <Box component="form" onSubmit={submit} noValidate>
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={1}
+        sx={{ alignItems: { md: 'flex-start' } }}
+      >
         <Box sx={{ flex: 1 }}>
           <PlaceSearch
             label="From"
@@ -40,6 +56,18 @@ function TripForm({ loading, onSubmit, onChange }: TripFormProps) {
             onChange={(place) => update('origin', place)}
           />
         </Box>
+        <Tooltip title="Swap start and destination">
+          <span>
+            <IconButton
+              aria-label="Swap start and destination"
+              onClick={swap}
+              disabled={!draft.origin && !draft.destination}
+              sx={{ mt: { md: 1 }, transform: { xs: 'rotate(90deg)', md: 'none' } }}
+            >
+              <SwapHorizIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
         <Box sx={{ flex: 1 }}>
           <PlaceSearch
             label="To"
