@@ -5,16 +5,11 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { PlannedCheckpoint } from '../api/client'
 import { formatArrival, formatMiles, formatWeather } from '../format'
+import { checkpointName } from '../routes'
 import RiskChip from './RiskChip'
 
 interface CheckpointListProps {
   checkpoints: PlannedCheckpoint[]
-}
-
-function placeName(index: number, count: number): string {
-  if (index === 0) return 'Start'
-  if (index === count - 1) return 'Destination'
-  return `Checkpoint ${index}`
 }
 
 function CheckpointList({ checkpoints }: CheckpointListProps) {
@@ -25,7 +20,7 @@ function CheckpointList({ checkpoints }: CheckpointListProps) {
       {checkpoints.map((checkpoint, index) => (
         <ListItem key={checkpoint.mile} disableGutters divider={index < checkpoints.length - 1}>
           <ListItemText
-            primary={placeName(index, checkpoints.length)}
+            primary={checkpointName(index, checkpoints.length)}
             secondary={`${formatMiles(checkpoint.mile)} in · ${formatWeather(checkpoint.weather)}`}
           />
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexShrink: 0 }}>

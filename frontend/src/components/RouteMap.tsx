@@ -6,6 +6,8 @@ import { useTheme } from '@mui/material/styles'
 import type { PlannedRoute } from '../api/client'
 import { boundsOf, drawOrder, lineStyle, TILES, type LatLng } from '../map'
 import { routeName } from '../routes'
+import CheckpointMarkers from './CheckpointMarkers'
+import RiskLegend from './RiskLegend'
 
 interface RouteMapProps {
   routes: PlannedRoute[]
@@ -28,6 +30,7 @@ function FitToRoutes({ bounds }: { bounds: [LatLng, LatLng] }) {
 function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
   const theme = useTheme()
   const bounds = boundsOf(routes)
+  const selected = routes.find((route) => route.id === selectedId)
   const first = routes[0]?.points
   const start = first?.[0]
   const end = first?.[first.length - 1]
@@ -35,13 +38,21 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
   return (
     <Box
       sx={{
+        position: 'relative',
         height: { xs: 320, md: 440 },
         borderRadius: '16px',
         overflow: 'hidden',
         border: 1,
         borderColor: 'm3.outlineVariant',
-        // Leaflet's own controls, nudged towards Material 3.
+        // Leaflet's own controls and popups, nudged towards Material 3.
         '& .leaflet-bar a': { color: 'm3.onSurface' },
+        '& .leaflet-popup-content-wrapper, & .leaflet-popup-tip': {
+          bgcolor: 'm3.surfaceContainerHigh',
+          color: 'm3.onSurface',
+        },
+        '& .leaflet-popup-content-wrapper': { borderRadius: '12px' },
+        '& .leaflet-popup-content': { m: 1.5, lineHeight: 1.5 },
+        '& .leaflet-popup-content p': { m: 0 },
       }}
     >
       <MapContainer
@@ -68,36 +79,27 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
             </Polyline>
           )
         })}
+        {selected ? <CheckpointMarkers checkpoints={selected.checkpoints} /> : null}
+        {/* Rings around the first and last checkpoints; clicks go through to the dots. */}
         {start ? (
           <CircleMarker
             center={start as LatLng}
-            radius={8}
-            pathOptions={{
-              color: '#fff',
-              weight: 3,
-              fillColor: theme.palette.primary.main,
-              fillOpacity: 1,
-            }}
-          >
-            <Tooltip>Start</Tooltip>
-          </CircleMarker>
+            radius={12}
+            interactive={false}
+            pathOptions={{ color: theme.palette.primary.main, weight: 3, fill: false }}
+          />
         ) : null}
         {end ? (
           <CircleMarker
             center={end as LatLng}
-            radius={8}
-            pathOptions={{
-              color: '#fff',
-              weight: 3,
-              fillColor: theme.palette.m3.tertiary,
-              fillOpacity: 1,
-            }}
-          >
-            <Tooltip>Destination</Tooltip>
-          </CircleMarker>
+            radius={12}
+            interactive={false}
+            pathOptions={{ color: theme.palette.m3.tertiary, weight: 3, fill: false }}
+          />
         ) : null}
         {bounds ? <FitToRoutes bounds={bounds} /> : null}
       </MapContainer>
+      <RiskLegend />
     </Box>
   )
 }

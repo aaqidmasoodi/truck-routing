@@ -1,6 +1,6 @@
-import { fireEvent } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { plannedRoute } from '../test/fixtures'
+import { checkpoint, plannedRoute, SEVERE } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
 import RouteMap from './RouteMap'
 
@@ -10,6 +10,11 @@ const routes = [
       [53.35, -6.26],
       [53.3, -7.6],
       [53.27, -9.06],
+    ],
+    checkpoints: [
+      { ...checkpoint(0, '2026-11-09T08:00:00Z'), latitude: 53.35, longitude: -6.26 },
+      { ...checkpoint(60, '2026-11-09T09:10:00Z', SEVERE), latitude: 53.3, longitude: -7.6 },
+      { ...checkpoint(130, '2026-11-09T10:30:00Z', null), latitude: 53.27, longitude: -9.06 },
     ],
   }),
   plannedRoute('route-2', {
@@ -21,18 +26,23 @@ const routes = [
   }),
 ]
 
-function lines(container: HTMLElement) {
+function shapes(container: HTMLElement) {
   return [...container.querySelectorAll('path.leaflet-interactive')]
 }
 
+function routeLines(container: HTMLElement) {
+  return shapes(container).filter((path) => path.getAttribute('fill') === 'none')
+}
+
 describe('RouteMap', () => {
-  it('draws every route plus start and destination markers', () => {
+  it('draws every route and the checkpoints of the selected one', () => {
     const { container } = renderWithTheme(
       <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
     )
 
-    // Two route lines and two circle markers.
-    expect(lines(container)).toHaveLength(4)
+    expect(routeLines(container)).toHaveLength(2)
+    // Three checkpoint dots; the start and end rings are not clickable.
+    expect(shapes(container)).toHaveLength(5)
   })
 
   it('draws the selected route last, on top, and thicker', () => {
@@ -40,7 +50,7 @@ describe('RouteMap', () => {
       <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
     )
 
-    const [other, selected] = lines(container)
+    const [other, selected] = routeLines(container)
     expect(Number(selected?.getAttribute('stroke-width'))).toBeGreaterThan(
       Number(other?.getAttribute('stroke-width')),
     )
@@ -52,8 +62,40 @@ describe('RouteMap', () => {
       <RouteMap routes={routes} selectedId="route-1" onSelect={onSelect} />,
     )
 
-    fireEvent.click(lines(container)[0]!)
+    fireEvent.click(routeLines(container)[0]!)
 
     expect(onSelect).toHaveBeenCalledWith('route-2')
+  })
+
+  it('colours checkpoints by risk', () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
+    )
+
+    const fills = shapes(container)
+      .filter((path) => path.getAttribute('fill') !== 'none')
+      .map((path) => path.getAttribute('fill'))
+    expect(fills).toEqual(['#2e7d32', '#c62828', '#9e9e9e'])
+  })
+
+  it('shows the weather and risk when a checkpoint is clicked', async () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
+    )
+    const severe = shapes(container).find((path) => path.getAttribute('fill') === '#c62828')
+
+    fireEvent.click(severe!)
+
+    expect(await screen.findByText('Checkpoint 1')).toBeInTheDocument()
+    expect(screen.getByText('Severe because of wind')).toBeInTheDocument()
+  })
+})
+
+describe('RouteMap legend', () => {
+  it('explains the checkpoint colours', () => {
+    renderWithTheme(<RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />)
+
+    const legend = screen.getByRole('list', { name: 'Risk levels' })
+    expect(legend).toHaveTextContent('LowModerateHighSevereNo Travel')
   })
 })
