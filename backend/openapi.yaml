@@ -153,8 +153,12 @@ paths:
                   properties:
                     value:
                       type: integer
-                      minimum: 0
-                      maximum: 4
+                      enum:
+                      - 0
+                      - 1
+                      - 2
+                      - 3
+                      - 4
                     label:
                       type: string
                   required:
@@ -345,8 +349,12 @@ components:
           properties:
             value:
               type: integer
-              minimum: 0
-              maximum: 4
+              enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
             label:
               type: string
           required:
@@ -357,8 +365,12 @@ components:
           properties:
             value:
               type: integer
-              minimum: 0
-              maximum: 4
+              enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
             label:
               type: string
           required:
@@ -369,8 +381,12 @@ components:
           properties:
             value:
               type: integer
-              minimum: 0
-              maximum: 4
+              enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
             label:
               type: string
           required:
@@ -381,8 +397,12 @@ components:
           properties:
             value:
               type: integer
-              minimum: 0
-              maximum: 4
+              enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
             label:
               type: string
           required:

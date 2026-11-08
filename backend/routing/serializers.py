@@ -80,7 +80,7 @@ class WeatherSerializer(serializers.Serializer[Any]):
 RISK_LEVEL_SCHEMA = {
     "type": "object",
     "properties": {
-        "value": {"type": "integer", "minimum": 0, "maximum": 4},
+        "value": {"type": "integer", "enum": [level.value for level in RiskLevel]},
         "label": {"type": "string"},
     },
     "required": ["value", "label"],

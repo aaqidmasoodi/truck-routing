@@ -159,19 +159,23 @@ export interface components {
         };
         Risk: {
             level: {
-                value: number;
+                /** @enum {integer} */
+                value: 0 | 1 | 2 | 3 | 4;
                 label: string;
             };
             wind: {
-                value: number;
+                /** @enum {integer} */
+                value: 0 | 1 | 2 | 3 | 4;
                 label: string;
             };
             rain: {
-                value: number;
+                /** @enum {integer} */
+                value: 0 | 1 | 2 | 3 | 4;
                 label: string;
             };
             snow: {
-                value: number;
+                /** @enum {integer} */
+                value: 0 | 1 | 2 | 3 | 4;
                 label: string;
             };
             causes: string[];
@@ -380,7 +384,8 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        value: number;
+                        /** @enum {integer} */
+                        value: 0 | 1 | 2 | 3 | 4;
                         label: string;
                     }[];
                 };
