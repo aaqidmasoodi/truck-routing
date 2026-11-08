@@ -20,15 +20,14 @@ Wind, Rain or Snow to see one condition, with its limits in real units.
 ## Example
 
 Laredo to Corpus Christi on 8 November 2026, during heavy rain in South Texas. Leaving
-now, every route runs into rain too heavy to drive in, so the app says so and suggests
-waiting:
+now, every route runs into rain too heavy to drive in. The app picks the least risky one,
+marks each wet stretch with how hard it's raining, and suggests waiting:
 
 ![Leaving now: no safe route](docs/do-not-drive.jpg)
 
-Leaving 13 hours later, the rain has passed. The app picks Route 3, which is clear all the
-way, over the faster Route 1, which still has a stretch of caution:
+Leaving 10 hours later, the rain has passed and the fastest route is clear all the way:
 
-![Leaving 13 hours later: clear all the way](docs/leave-later.jpg)
+![Leaving 10 hours later: clear all the way](docs/leave-later.jpg)
 
 Weather changes, so the same trip will look different on another day.
 
