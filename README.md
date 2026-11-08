@@ -2,6 +2,12 @@
 
 Helps a truck driver pick the safest route based on weather, load weight and travel time.
 
+Pick a start, a destination and the truck's weight. The app finds up to three routes,
+checks the forecast at evenly spaced checkpoints for the time the truck gets to each one,
+scores every checkpoint for wind, rain and snow, and recommends the safest route with a
+one-line reason. A slider shows how the picture changes if you leave up to 48 hours later,
+and the map colours each route by risk or by wind, rain or snow.
+
 - `backend/`: Django + Django REST Framework API
 - `frontend/`: React + Vite + TypeScript + Material UI
 
@@ -54,8 +60,8 @@ Location data is based on [GeoNames](https://www.geonames.org).
 ## Finding routes
 
 Up to three driving routes come from [OSRM](https://project-osrm.org), each with its
-distance, drive time and the points along the road. OSRM sends the shape as an encoded polyline, which `backend/routing/polyline.py`
-decodes. Results are cached for an hour. It asks the OpenStreetMap-hosted OSRM server first
+distance, drive time and the points along the road. OSRM sends the shape as an encoded
+polyline, which `backend/routing/polyline.py` decodes. Results are cached for an hour. It asks the OpenStreetMap-hosted OSRM server first
 and falls back to the OSRM project's demo server, since both are free and best effort.
 
 Two things to know:
@@ -187,6 +193,16 @@ level. Routes are then compared in this order (see `backend/routing/ranking.py`)
 5. Shortest travel time
 
 The top route also gets a short reason, such as "12 fewer miles of Severe weather".
+
+## Assumptions and limits
+
+- Arrival times assume the route's average speed all the way, with no stops or breaks.
+- Forecasts go about four days ahead. Miles the truck reaches after that have no
+  forecast, count as Low risk, and are flagged in the results.
+- Forecasts are hourly, so each checkpoint uses the hour nearest its arrival time.
+- The free OSRM servers sometimes return fewer than three routes, or only one.
+- Everything runs on free services with no API keys, so a slow or failed lookup is retried
+  a few times before the app shows an error.
 
 ## Running locally
 
