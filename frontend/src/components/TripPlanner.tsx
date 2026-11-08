@@ -99,7 +99,6 @@ function TripPlanner() {
   const full = !wide && sheetState === 'full'
   const bodyHidden = !wide && sheetState === 'peek'
 
-
   const up = () =>
     setSheetState((state) => (state === 'peek' ? 'half' : canGoFull ? 'full' : state))
   const down = () => setSheetState((state) => (state === 'full' ? 'half' : 'peek'))
