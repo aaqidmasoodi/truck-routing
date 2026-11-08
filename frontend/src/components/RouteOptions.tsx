@@ -8,9 +8,10 @@ import Collapse from '@mui/material/Collapse'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { TripPlan } from '../api/client'
-import { formatDuration, formatMiles } from '../format'
-import { riskyMiles, routeName } from '../routes'
+import { formatArrival, formatDuration, formatMiles } from '../format'
+import { arrival, riskyMiles, routeName } from '../routes'
 import CheckpointList from './CheckpointList'
+import RiskStrip from './RiskStrip'
 
 interface RouteOptionsProps {
   plan: TripPlan
@@ -26,6 +27,7 @@ function RouteOptions({ plan, selectedId, onSelect }: RouteOptionsProps) {
     <Stack spacing={1.5} component="ol" sx={{ listStyle: 'none', p: 0, m: 0 }}>
       {plan.routes.map((route) => {
         const selected = route.id === selectedId
+        const arriving = arrival(route)
         return (
           <Card
             key={route.id}
@@ -56,9 +58,19 @@ function RouteOptions({ plan, selectedId, onSelect }: RouteOptionsProps) {
                   {formatMiles(route.distance_miles)} · {formatDuration(route.duration_minutes)}
                 </Typography>
               </CardContent>
-              <Typography variant="body2" color="text.secondary" sx={{ px: 2, mt: -1, pb: 1 }}>
-                {riskyMiles(route)}
-              </Typography>
+              <Stack spacing={1} sx={{ px: 2, mt: -1, pb: 1.5 }}>
+                <RiskStrip checkpoints={route.checkpoints} />
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
+                    {riskyMiles(route)}
+                  </Typography>
+                  {arriving ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Arrives {formatArrival(arriving, route.checkpoints[0]?.eta ?? arriving)}
+                    </Typography>
+                  ) : null}
+                </Stack>
+              </Stack>
             </CardActionArea>
             <Button
               size="small"

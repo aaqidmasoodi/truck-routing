@@ -62,6 +62,17 @@ describe('RouteOptions', () => {
   })
 })
 
+describe('RouteOptions summary', () => {
+  it('shows a risk strip and the arrival time for each route', () => {
+    renderWithTheme(
+      <RouteOptions plan={tripPlan([safe, stormy])} selectedId="route-2" onSelect={() => {}} />,
+    )
+
+    expect(screen.getAllByRole('img', { name: /Risk along the route/ })).toHaveLength(2)
+    expect(screen.getAllByText(/^Arrives /)).toHaveLength(2)
+  })
+})
+
 describe('RouteOptions selection', () => {
   it('marks the selected route and reports clicks', async () => {
     const onSelect = vi.fn()
