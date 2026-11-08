@@ -127,6 +127,14 @@ count as Low, so the ranking falls back to drive time instead of failing.
 
 No road between the places gives a 404, and the routing service being down gives a 502.
 
+## The map
+
+Routes are drawn with [Leaflet](https://leafletjs.com) on CARTO's light basemap
+(`frontend/src/components/RouteMap.tsx`). Every option is on the map; the selected one is
+bold and drawn on top, and it starts as the recommended route. Clicking a line or a route
+card selects it in both places. The map zooms to fit the routes for each new plan, and its
+code only loads once there are results, so the first page load stays small.
+
 ## How routes are ranked
 
 Each checkpoint covers a stretch of road, and that stretch takes the checkpoint's risk
