@@ -43,6 +43,11 @@ def fake_api(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client
     return httpx.Client(transport=httpx.MockTransport(handler))
 
 
+def main_lookups(requests: list[httpx.Request]) -> list[httpx.Request]:
+    """The plain start-to-end lookups, leaving out detours through a third point."""
+    return [request for request in requests if request.url.path.count(";") == 1]
+
+
 def test_find_routes_asks_for_alternatives_between_two_points() -> None:
     seen: list[httpx.Request] = []
 
@@ -121,7 +126,7 @@ def test_same_trip_is_served_from_cache() -> None:
     find_routes(DENVER, CHICAGO, client=api)
     find_routes((39.740001, -104.980001), CHICAGO, client=api)
 
-    assert len(calls) == 1
+    assert len(main_lookups(calls)) == 1
 
 
 def test_reverse_trip_is_a_different_lookup() -> None:
@@ -135,7 +140,7 @@ def test_reverse_trip_is_a_different_lookup() -> None:
     find_routes(DENVER, CHICAGO, client=api)
     find_routes(CHICAGO, DENVER, client=api)
 
-    assert len(calls) == 2
+    assert len(main_lookups(calls)) == 2
 
 
 def test_routes_and_cache_hits_are_logged(caplog: pytest.LogCaptureFixture) -> None:
@@ -155,10 +160,10 @@ SECOND = "https://second.example/route/v1/driving"
 
 def test_falls_back_to_the_next_server(settings: Any) -> None:
     settings.ROUTING_URLS = [FIRST, SECOND]
-    hosts: list[str] = []
+    seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        hosts.append(request.url.host)
+        seen.append(request)
         if request.url.host == "first.example":
             raise httpx.ReadTimeout("slow", request=request)
         return httpx.Response(200, json=OSRM_RESPONSE)
@@ -166,7 +171,12 @@ def test_falls_back_to_the_next_server(settings: Any) -> None:
     routes = find_routes(DENVER, CHICAGO, client=fake_api(handler))
 
     assert len(routes) == 2
-    assert hosts == ["first.example", "second.example"]
+    assert [request.url.host for request in main_lookups(seen)] == [
+        "first.example",
+        "second.example",
+    ]
+    # Detours go to the server that answered.
+    assert {request.url.host for request in seen[2:]} == {"second.example"}
 
 
 def test_no_route_does_not_try_other_servers(settings: Any) -> None:

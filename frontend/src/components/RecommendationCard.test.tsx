@@ -11,13 +11,13 @@ describe('RecommendationCard', () => {
   it('names the route, the reason and the time it costs', () => {
     renderWithTheme(
       <RecommendationCard
-        plan={tripPlan([safer, faster], { reason: '30 fewer miles of High risk weather' })}
+        plan={tripPlan([safer, faster], { reason: '30 fewer miles of bad weather' })}
       />,
     )
 
     const card = screen.getByRole('region', { name: 'Recommendation' })
     expect(card).toHaveTextContent('Take Route 2')
-    expect(card).toHaveTextContent('30 fewer miles of High risk weather.')
+    expect(card).toHaveTextContent('30 fewer miles of bad weather.')
     expect(card).toHaveTextContent('134 mi · 2 h 48 min · arrives')
     expect(card).toHaveTextContent('18 min longer than Route 1, the fastest.')
   })
@@ -38,7 +38,7 @@ describe('RecommendationCard', () => {
 
     renderWithTheme(<RecommendationCard plan={tripPlan([route])} />)
 
-    expect(screen.getByText('Severe')).toBeInTheDocument()
+    expect(screen.getByText('Dangerous')).toBeInTheDocument()
   })
 
   it('says plainly when no route is safe', () => {

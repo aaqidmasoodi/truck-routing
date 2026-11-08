@@ -52,7 +52,7 @@ def test_plan_recommends_the_safer_detour(client: Client) -> None:
     assert body["recommended_route_id"] == "route-2"
     assert body["safe_to_travel"] is True
     assert [route["id"] for route in body["routes"]] == ["route-2", "route-1"]
-    assert body["reason"] == "Avoids 30 mi of No Travel weather"
+    assert body["reason"] == "Avoids 30 mi too dangerous to drive"
 
 
 @pytest.mark.usefixtures("stormy_straight_road")

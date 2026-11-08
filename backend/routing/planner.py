@@ -197,7 +197,7 @@ def plan_trip(
         weight_lb,
         plan.routes[0].route.id,
         plan.reason,
-        "" if plan.safe_to_travel else ", but every route has No Travel weather",
+        "" if plan.safe_to_travel else ", but every route has weather too dangerous to drive",
     )
     return TripPlan(
         routes=plan.routes,

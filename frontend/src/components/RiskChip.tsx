@@ -1,21 +1,15 @@
 import Chip from '@mui/material/Chip'
 import type { RiskLevel } from '../api/client'
+import { condition } from '../conditions'
 
-interface RiskChipProps {
-  level: RiskLevel | null
-}
-
-function RiskChip({ level }: RiskChipProps) {
-  if (!level) return <Chip size="small" variant="outlined" label="Unknown" />
+/** A level in plain words and its traffic-light colour. */
+function RiskChip({ level }: { level: RiskLevel | null }) {
+  const { label, colour, text } = condition(level)
   return (
     <Chip
       size="small"
-      label={level.label}
-      sx={(theme) => ({
-        fontWeight: 500,
-        bgcolor: theme.palette.risk[level.value]?.main,
-        color: theme.palette.risk[level.value]?.contrastText,
-      })}
+      label={label}
+      sx={{ fontWeight: 500, bgcolor: colour, color: text, flexShrink: 0 }}
     />
   )
 }

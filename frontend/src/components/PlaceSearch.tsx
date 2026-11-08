@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Autocomplete from '@mui/material/Autocomplete'
 import CircularProgress from '@mui/material/CircularProgress'
+import InputAdornment from '@mui/material/InputAdornment'
 import TextField from '@mui/material/TextField'
 import { searchPlaces, type Place } from '../api/client'
 import { debug } from '../debug'
@@ -11,6 +12,10 @@ interface PlaceSearchProps {
   onChange: (place: Place | null) => void
   /** A problem with the chosen place, shown under the field. */
   error?: string | undefined
+  /** Shown at the start of the field, like the start and end pins on a map. */
+  icon?: ReactNode
+  /** Smaller, for a phone screen. */
+  compact?: boolean
 }
 
 interface SearchResult {
@@ -22,7 +27,7 @@ interface SearchResult {
 const MIN_LETTERS = 2
 const TYPING_PAUSE_MS = 300
 
-function PlaceSearch({ label, value, onChange, error }: PlaceSearchProps) {
+function PlaceSearch({ label, value, onChange, error, icon, compact }: PlaceSearchProps) {
   const [input, setInput] = useState('')
   const [result, setResult] = useState<SearchResult>({ query: '', places: [], failed: false })
 
@@ -71,12 +76,21 @@ function PlaceSearch({ label, value, onChange, error }: PlaceSearchProps) {
         <TextField
           {...params}
           label={label}
+          size={compact ? 'small' : 'medium'}
           error={failed || Boolean(error)}
-          helperText={failed ? 'Place search is unavailable right now' : (error ?? ' ')}
+          // A compact field only makes room underneath when there's something to say.
+          helperText={
+            failed ? 'Place search is unavailable right now' : (error ?? (compact ? null : ' '))
+          }
           slotProps={{
             ...params.slotProps,
             input: {
               ...params.slotProps.input,
+              startAdornment: icon ? (
+                <InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}>
+                  {icon}
+                </InputAdornment>
+              ) : undefined,
               endAdornment: (
                 <>
                   {loading ? <CircularProgress color="inherit" size={18} /> : null}

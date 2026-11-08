@@ -3,13 +3,13 @@ import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 
 describe('App', () => {
-  it('shows the API as online when the health check passes', async () => {
+  it('shows a green dot when the health check passes', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ status: 'ok' }))
 
     render(<App />)
 
     expect(screen.getByText('Weather-Aware Truck Routing')).toBeInTheDocument()
-    expect(await screen.findByText('API online')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Server online')).toBeInTheDocument()
   })
 
   it('checks again when the window regains focus', async () => {
@@ -19,13 +19,13 @@ describe('App', () => {
       .mockResolvedValue(Response.json({ status: 'ok' }))
 
     render(<App />)
-    expect(await screen.findByText('API offline')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Server offline')).toBeInTheDocument()
 
     act(() => {
       fireEvent.focus(window)
     })
 
-    expect(await screen.findByText('API online')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Server online')).toBeInTheDocument()
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
@@ -54,11 +54,11 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: 'API docs' })).toHaveAttribute('href', '/api/docs/')
   })
 
-  it('shows the API as offline when the request fails', async () => {
+  it('shows a red dot when the request fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network'))
 
     render(<App />)
 
-    expect(await screen.findByText('API offline')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Server offline')).toBeInTheDocument()
   })
 })

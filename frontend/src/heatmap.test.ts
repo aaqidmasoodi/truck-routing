@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkpoint } from './test/fixtures'
-import { heatColour, milesBetween, stretches } from './heatmap'
+import { milesBetween, stretches } from './heatmap'
 import type { LatLng } from './map'
 
 // Due north along the meridian, about 69.1 miles per degree.
@@ -57,17 +57,5 @@ describe('stretches', () => {
 
   it('has nothing to draw without a shape', () => {
     expect(stretches([[0, 0]], checkpoints, 100)).toEqual([])
-  })
-})
-
-describe('heatColour', () => {
-  it('runs from light at zero to dark at the No Travel edge', () => {
-    expect(heatColour('wind', 0)).toBe('#b2dfdb')
-    expect(heatColour('wind', 55)).toBe('#004d40')
-    expect(heatColour('wind', 80)).toBe('#004d40')
-  })
-
-  it('blends in between', () => {
-    expect(heatColour('rain', 0.5)).toBe('#6493ce')
   })
 })

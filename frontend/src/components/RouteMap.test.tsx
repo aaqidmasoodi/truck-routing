@@ -1,9 +1,18 @@
 import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { checkpoint, plannedRoute, SEVERE } from '../test/fixtures'
+import type { CheckpointRisk } from '../api/client'
+import { checkpoint, LOW, plannedRoute, SEVERE } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
 import RouteMap from './RouteMap'
+
+const windy: CheckpointRisk = {
+  level: SEVERE,
+  wind: SEVERE,
+  rain: LOW,
+  snow: LOW,
+  causes: ['wind'],
+}
 
 const routes = [
   plannedRoute('route-1', {
@@ -14,7 +23,13 @@ const routes = [
     ],
     checkpoints: [
       { ...checkpoint(0, '2026-11-09T08:00:00Z'), latitude: 53.35, longitude: -6.26 },
-      { ...checkpoint(60, '2026-11-09T09:10:00Z', SEVERE), latitude: 53.3, longitude: -7.6 },
+      {
+        ...checkpoint(60, '2026-11-09T09:10:00Z', SEVERE),
+        latitude: 53.3,
+        longitude: -7.6,
+        risk: windy,
+        weather: { wind_mph: 48, rain_in_per_hr: 0, snow_in_per_hr: 0 },
+      },
       { ...checkpoint(130, '2026-11-09T10:30:00Z', null), latitude: 53.27, longitude: -9.06 },
     ],
   }),
@@ -27,108 +42,102 @@ const routes = [
   }),
 ]
 
-function shapes(container: HTMLElement) {
-  return [...container.querySelectorAll('path.leaflet-interactive')]
-}
+const clearRoute = plannedRoute('route-1', {
+  points: routes[0]!.points,
+  checkpoints: [checkpoint(0, '2026-11-09T08:00:00Z'), checkpoint(130, '2026-11-09T10:30:00Z')],
+})
 
-function bands(container: HTMLElement) {
-  return [...container.querySelectorAll('path:not(.leaflet-interactive)')].filter(
-    (path) => path.getAttribute('stroke-width') === '18',
-  )
+function strokes(container: HTMLElement, width: string) {
+  return [...container.querySelectorAll('path')]
+    .filter((path) => path.getAttribute('stroke-width') === width)
+    .map((path) => path.getAttribute('stroke'))
 }
 
 function routeLines(container: HTMLElement) {
-  return shapes(container).filter((path) => path.getAttribute('fill') === 'none')
+  return [...container.querySelectorAll('path.leaflet-interactive')]
+}
+
+function markers(container: HTMLElement) {
+  return [...container.querySelectorAll('.trouble-marker')]
 }
 
 describe('RouteMap', () => {
-  it('draws every route and the checkpoints of the selected one', () => {
-    const { container } = renderWithTheme(
-      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
-    )
-
-    expect(routeLines(container)).toHaveLength(2)
-    // Three checkpoint dots; the start and end rings are not clickable.
-    expect(shapes(container)).toHaveLength(5)
-  })
-
-  it('draws the selected route last, on top, and thicker', () => {
-    const { container } = renderWithTheme(
-      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
-    )
-
-    const [other, selected] = routeLines(container)
-    expect(Number(selected?.getAttribute('stroke-width'))).toBeGreaterThan(
-      Number(other?.getAttribute('stroke-width')),
-    )
-  })
-
-  it('selects a route when its line is clicked', () => {
+  it('keeps every route clickable', () => {
     const onSelect = vi.fn()
     const { container } = renderWithTheme(
       <RouteMap routes={routes} selectedId="route-1" onSelect={onSelect} />,
     )
 
+    expect(routeLines(container)).toHaveLength(2)
     fireEvent.click(routeLines(container)[0]!)
-
     expect(onSelect).toHaveBeenCalledWith('route-2')
   })
 
-  it('colours checkpoints by risk', () => {
+  it('colours the selected route like traffic, stretch by stretch', () => {
     const { container } = renderWithTheme(
       <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
     )
 
-    const fills = shapes(container)
-      .filter((path) => path.getAttribute('fill') !== 'none')
-      .map((path) => path.getAttribute('fill'))
-    expect(fills).toEqual(['#2e7d32', '#c62828', '#9e9e9e'])
+    // Clear, then Dangerous, then no forecast: the line on top and the glow underneath.
+    expect(strokes(container, '5')).toEqual(['#2e7d32', '#d32f2f', '#9e9e9e'])
+    expect(strokes(container, '22')).toEqual(['#2e7d32', '#d32f2f', '#9e9e9e'])
   })
 
-  it('shows the weather and risk when a checkpoint is clicked', async () => {
+  it('puts a marker only where conditions are not clear', () => {
     const { container } = renderWithTheme(
       <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
     )
-    const severe = shapes(container).find((path) => path.getAttribute('fill') === '#c62828')
 
-    fireEvent.click(severe!)
+    expect(markers(container)).toHaveLength(1)
+    expect(container.querySelector('[title="Dangerous: strong wind"]')).not.toBeNull()
+  })
 
-    expect(await screen.findByText('Checkpoint 1')).toBeInTheDocument()
-    expect(screen.getByText('Severe because of wind')).toBeInTheDocument()
+  it('says what is wrong, how bad and what to do when a marker is clicked', async () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
+    )
+
+    fireEvent.click(markers(container)[0]!)
+
+    expect(await screen.findByText('Strong wind, 48 mph. Avoid if you can.')).toBeInTheDocument()
+  })
+
+  it('sums the route up in one line', () => {
+    renderWithTheme(<RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />)
+
+    expect(screen.getByText('Dangerous: strong wind for 10 mi')).toBeInTheDocument()
+  })
+
+  it('says so when the whole route is clear', () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={[clearRoute]} selectedId="route-1" onSelect={() => {}} />,
+    )
+
+    expect(screen.getByText('Clear all the way')).toBeInTheDocument()
+    expect(markers(container)).toHaveLength(0)
   })
 })
 
 describe('RouteMap legend', () => {
-  it('explains the checkpoint colours', () => {
+  it('explains the colours as driving advice', () => {
     renderWithTheme(<RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />)
 
-    const legend = screen.getByRole('list', { name: 'Risk levels' })
-    expect(legend).toHaveTextContent('LowModerateHighSevereNo Travel')
+    const legend = screen.getByRole('list', { name: 'Driving conditions key' })
+    expect(legend).toHaveTextContent('ClearNormal driving')
+    expect(legend).toHaveTextContent('Do not driveWait it out')
   })
-})
 
-describe('RouteMap heatmap', () => {
-  it('lays a band along the selected route, one stretch per checkpoint', () => {
+  it('switches to one condition with its real units', async () => {
     const { container } = renderWithTheme(
       <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
     )
 
-    expect(bands(container).map((band) => band.getAttribute('stroke'))).toEqual([
-      '#2e7d32',
-      '#c62828',
-      '#bdbdbd',
-    ])
-  })
+    await userEvent.click(screen.getByRole('button', { name: 'Rain' }))
 
-  it('switches the band to a weather layer', async () => {
-    const { container } = renderWithTheme(
-      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />,
-    )
-
-    await userEvent.click(screen.getByRole('button', { name: 'Wind' }))
-
-    expect(bands(container)[0]?.getAttribute('stroke')).not.toBe('#2e7d32')
-    expect(screen.getByRole('img', { name: 'wind scale' })).toHaveTextContent('55+ mph')
+    expect(screen.getByRole('list', { name: 'Rain key' })).toHaveTextContent('Over 1 in/h')
+    // The windy stretch is dry, so on the rain layer it's clear and has no marker.
+    expect(strokes(container, '5')).toEqual(['#2e7d32', '#2e7d32', '#9e9e9e'])
+    expect(markers(container)).toHaveLength(0)
   })
 })
 

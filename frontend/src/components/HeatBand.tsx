@@ -1,18 +1,20 @@
 import { useMemo } from 'react'
 import { Polyline } from 'react-leaflet'
-import { useTheme } from '@mui/material/styles'
 import type { PlannedRoute } from '../api/client'
-import { heatColour, NO_DATA, stretches, type HeatLayer } from '../heatmap'
+import { condition, levelOn, type MapLayer } from '../conditions'
+import { stretches } from '../heatmap'
 import type { LatLng } from '../map'
 
 interface HeatBandProps {
   route: PlannedRoute
-  layer: HeatLayer
+  layer: MapLayer
 }
 
-/** A wide translucent band along the road, each stretch coloured by its checkpoint. */
+/**
+ * The selected route coloured like traffic on a map app: a soft glow along the corridor
+ * (the heatmap) and a crisp line on top, each stretch in its checkpoint's colour.
+ */
 function HeatBand({ route, layer }: HeatBandProps) {
-  const theme = useTheme()
   // Cutting the road up is the costly part, and it only depends on the shape and the
   // checkpoint miles, which stay put while the departure slider moves.
   const pieces = useMemo(
@@ -20,25 +22,35 @@ function HeatBand({ route, layer }: HeatBandProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [route.id, route.points, route.distance_miles],
   )
+  const colours = pieces.map(
+    (piece) => condition(levelOn(layer, route.checkpoints[piece.checkpoint]?.risk ?? null)).colour,
+  )
 
-  return pieces.map((piece) => {
-    const checkpoint = route.checkpoints[piece.checkpoint]
-    const level = checkpoint?.risk?.level
-    const weather = checkpoint?.weather
-    let colour = NO_DATA
-    if (layer === 'risk' && level) colour = theme.palette.risk[level.value]?.main ?? NO_DATA
-    if (layer === 'wind' && weather) colour = heatColour('wind', weather.wind_mph)
-    if (layer === 'rain' && weather) colour = heatColour('rain', weather.rain_in_per_hr)
-    if (layer === 'snow' && weather) colour = heatColour('snow', weather.snow_in_per_hr)
-    return (
+  return (
+    <>
+      {pieces.map((piece, i) => (
+        <Polyline
+          key={`glow-${piece.checkpoint}`}
+          positions={piece.positions}
+          interactive={false}
+          pathOptions={{ color: colours[i], weight: 22, opacity: 0.3, lineCap: 'butt' }}
+        />
+      ))}
       <Polyline
-        key={piece.checkpoint}
-        positions={piece.positions}
+        positions={route.points as LatLng[]}
         interactive={false}
-        pathOptions={{ color: colour, weight: 18, opacity: 0.55, lineCap: 'butt' }}
+        pathOptions={{ color: '#ffffff', weight: 9, opacity: 1 }}
       />
-    )
-  })
+      {pieces.map((piece, i) => (
+        <Polyline
+          key={`line-${piece.checkpoint}`}
+          positions={piece.positions}
+          interactive={false}
+          pathOptions={{ color: colours[i], weight: 5, opacity: 1 }}
+        />
+      ))}
+    </>
+  )
 }
 
 export default HeatBand

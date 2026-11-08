@@ -1,10 +1,27 @@
 import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { plannedRoute, tripPlan } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
 import { toLocalInput } from '../tripDraft'
 import TripPlanner from './TripPlanner'
+
+/** Pretend the screen is a desktop (wide) or a phone, for the layout's media query. */
+function setScreen(wide: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: wide,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }))
+}
+
+beforeEach(() => setScreen(true))
+afterEach(() => vi.unstubAllGlobals())
 
 const places: Record<string, object> = {
   Denv: {
@@ -72,7 +89,7 @@ describe('TripPlanner', () => {
     fakeApi(() =>
       Response.json(
         tripPlan([plannedRoute('route-2'), plannedRoute('route-1')], {
-          reason: '12 fewer miles of Severe weather',
+          reason: '12 fewer miles of dangerous weather',
         }),
       ),
     )
@@ -84,7 +101,7 @@ describe('TripPlanner', () => {
 
     expect(await screen.findByText('2 routes found, safest first')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Recommendation' })).toHaveTextContent(
-      'Take Route 212 fewer miles of Severe weather.',
+      'Take Route 212 fewer miles of dangerous weather.',
     )
     expect(planCall()).toMatchObject({ weight_lb: 36000, spacing_miles: 10 })
   })
@@ -206,5 +223,79 @@ describe('TripPlanner', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       "There's no road route between these places.",
     )
+  })
+  it('goes to a results page and back, keeping the trip', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    expect(await screen.findByRole('heading', { name: 'Denver → Chicago' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Find routes' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back to trip' }))
+
+    expect(screen.getByRole('button', { name: 'Find routes' })).toBeEnabled()
+    expect(screen.getByLabelText('From')).toHaveValue('Denver, Colorado, United States')
+  })
+
+  describe('on a phone', () => {
+    beforeEach(() => setScreen(false))
+
+    it('shows short results in the sheet', async () => {
+      fakeApi(() =>
+        Response.json(
+          tripPlan([plannedRoute('route-2'), plannedRoute('route-1')], {
+            reason: '12 fewer miles of dangerous weather',
+          }),
+        ),
+      )
+      renderWithTheme(<TripPlanner />)
+
+      await pickTrip()
+      await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+      expect(await screen.findByText('2 routes found, safest first')).toBeInTheDocument()
+      expect(screen.getByRole('region', { name: 'Recommendation' })).toHaveTextContent(
+        'Take Route 2 12 fewer miles of dangerous weather.',
+      )
+      await userEvent.click(screen.getByRole('button', { name: 'Show Route 1 on the map' }))
+      expect(screen.getByRole('button', { name: 'Show Route 1 on the map' })).toHaveAttribute(
+        'aria-current',
+        'true',
+      )
+    })
+
+    it('opens all the way for every detail, checkpoints included', async () => {
+      fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+      renderWithTheme(<TripPlanner />)
+
+      await pickTrip()
+      await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+      await userEvent.click(await screen.findByRole('button', { name: 'Details & checkpoints' }))
+
+      expect(screen.getByRole('button', { name: /checkpoints$/ })).toBeInTheDocument()
+      expect(screen.getByText('1 route found, safest first')).toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: 'Show less' }))
+      expect(screen.getByRole('button', { name: 'Details & checkpoints' })).toBeInTheDocument()
+    })
+
+    it('slides the sheet down out of the way and back up', async () => {
+      renderWithTheme(<TripPlanner />)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Hide planner' }))
+      expect(screen.getByRole('button', { name: 'Show planner' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      )
+
+      await userEvent.click(screen.getByRole('button', { name: 'Show planner' }))
+      expect(screen.getByRole('button', { name: 'Hide planner' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
+    })
   })
 })

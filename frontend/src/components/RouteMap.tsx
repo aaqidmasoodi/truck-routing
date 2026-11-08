@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css'
 import {
   CircleMarker,
   MapContainer,
+  Pane,
   Polyline,
   TileLayer,
   Tooltip,
@@ -14,38 +15,90 @@ import Chip from '@mui/material/Chip'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useTheme } from '@mui/material/styles'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import WarningIcon from '@mui/icons-material/Warning'
 import type { PlannedRoute } from '../api/client'
-import type { HeatLayer } from '../heatmap'
-import { boundsOf, drawOrder, lineStyle, TILES, type LatLng } from '../map'
+import { CAUSE_NAMES, condition, troubleSpots, type MapLayer } from '../conditions'
+import { formatMiles } from '../format'
+import { boundsOf, drawOrder, LABELS, lineStyle, TILES, type LatLng } from '../map'
 import { routeName } from '../routes'
-import CheckpointMarkers from './CheckpointMarkers'
 import HeatBand from './HeatBand'
 import RiskLegend from './RiskLegend'
+import TroubleMarkers from './TroubleMarkers'
 
 // Before any plan: the North Atlantic, with North America and Europe both in view.
 const WORLD_VIEW = { center: [42, -40] as LatLng, zoom: 3 }
+// Wait for the bottom sheet to finish sliding before zooming to the routes again.
+const SETTLE_MS = 300
+// The fewest pixels of map height the routes are squeezed into.
+const MIN_VISIBLE = 120
 
 interface RouteMapProps {
   routes: PlannedRoute[]
   selectedId: string
   onSelect: (routeId: string) => void
+  /** Pixels at the bottom covered by something else, like the planner sheet on a phone. */
+  inset?: number
+  /** Leave out the zoom buttons, for touch screens where pinching does the job. */
+  compact?: boolean
 }
 
-/** Zoom to the routes whenever a new set comes in, but not on every re-render. */
-function FitToRoutes({ bounds }: { bounds: [LatLng, LatLng] }) {
+/** Zoom to the routes when a new set comes in or the visible area changes size. */
+function FitToRoutes({ bounds, inset }: { bounds: [LatLng, LatLng]; inset: number }) {
   const map = useMap()
   const key = bounds.flat().join(',')
   useEffect(() => {
-    map.fitBounds(bounds, { padding: [32, 32] })
+    const timer = setTimeout(() => {
+      map.invalidateSize()
+      // Fit the routes into the strip of map the sheet leaves free, keeping at least a
+      // little room even when the sheet covers most of the screen.
+      const free = map.getSize().y - 64 - 32
+      const covered = Math.max(0, Math.min(inset, free - MIN_VISIBLE))
+      map.fitBounds(bounds, { paddingTopLeft: [24, 64], paddingBottomRight: [24, covered + 32] })
+    }, SETTLE_MS)
+    return () => clearTimeout(timer)
     // `key` stands in for `bounds`, which is a new array each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, key])
+  }, [map, key, inset])
   return null
 }
 
-function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
+/** One line over the map: "Clear all the way", or the worst thing on the selected route. */
+function Summary({ route, layer, top }: { route: PlannedRoute; layer: MapLayer; top: number }) {
+  const spots = troubleSpots(route.checkpoints, layer)
+  const worst = spots.reduce<(typeof spots)[number] | undefined>(
+    (a, b) => (!a || b.level > a.level ? b : a),
+    undefined,
+  )
+  const look = condition(worst?.level ?? 0)
+  const what = worst?.cause ? CAUSE_NAMES[worst.cause].toLowerCase() : 'bad weather'
+  const label = worst
+    ? `${look.label}: ${what} for ${formatMiles(worst.miles)}` +
+      (spots.length > 1 ? `, ${spots.length - 1} more` : '')
+    : 'Clear all the way'
+  return (
+    <Chip
+      icon={worst ? <WarningIcon /> : <CheckCircleIcon />}
+      label={label}
+      sx={{
+        position: 'absolute',
+        left: 12,
+        top,
+        zIndex: 1000, // above Leaflet's panes
+        maxWidth: 'calc(100% - 24px)',
+        bgcolor: look.colour,
+        color: look.text,
+        fontWeight: 500,
+        boxShadow: 2,
+        '& .MuiChip-icon': { color: look.text },
+      }}
+    />
+  )
+}
+
+function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: RouteMapProps) {
   const theme = useTheme()
-  const [layer, setLayer] = useState<HeatLayer>('risk')
+  const [layer, setLayer] = useState<MapLayer>('overall')
   const bounds = boundsOf(routes)
   const selected = routes.find((route) => route.id === selectedId)
   const first = routes[0]?.points
@@ -58,8 +111,18 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         position: 'relative',
         height: '100%',
         overflow: 'hidden',
+        bgcolor: '#e8e8e8', // the tiles' own grey, so loading doesn't flash white
         // Leaflet's own controls and popups, nudged towards Material 3.
-        '& .leaflet-bar a': { color: 'm3.onSurface' },
+        '& .leaflet-container': { bgcolor: 'transparent', fontFamily: 'inherit' },
+        '& .leaflet-bar': {
+          border: 'none',
+          boxShadow: 2,
+          borderRadius: '12px',
+          overflow: 'hidden',
+        },
+        '& .leaflet-bar a': { color: 'm3.onSurface', bgcolor: 'm3.surfaceContainer' },
+        '& .leaflet-control-attribution': { fontSize: 10 },
+        '& .leaflet-bottom': { bottom: inset, transition: 'bottom 250ms ease' },
         '& .leaflet-popup-content-wrapper, & .leaflet-popup-tip': {
           bgcolor: 'm3.surfaceContainerHigh',
           color: 'm3.onSurface',
@@ -73,29 +136,36 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         center={start ? [start[0] ?? 0, start[1] ?? 0] : WORLD_VIEW.center}
         zoom={start ? 6 : WORLD_VIEW.zoom}
         zoomControl={false}
+        // Quarter steps, so the routes fill the space they're fitted into.
+        zoomSnap={0.25}
         style={{ height: '100%', width: '100%' }}
       >
-        <ZoomControl position="bottomright" />
-        <TileLayer url={TILES.url} attribution={TILES.attribution} />
+        {compact ? null : <ZoomControl position="bottomright" />}
+        <TileLayer url={TILES.url} attribution={TILES.attribution} maxZoom={TILES.maxZoom} />
+        {/* Place names above the routes but below the markers, and never in a click's way. */}
+        <Pane name="labels" style={{ zIndex: 450, pointerEvents: 'none' }}>
+          <TileLayer url={LABELS.url} maxZoom={LABELS.maxZoom} />
+        </Pane>
         {selected ? <HeatBand route={selected} layer={layer} /> : null}
         {drawOrder(routes, selectedId).map((route) => {
           const selected = route.id === selectedId
+          // The selected route is drawn in its colours above; this keeps it clickable.
           return (
             <Polyline
               key={`${route.id}-${selected}`}
               positions={route.points as LatLng[]}
-              pathOptions={lineStyle(
-                selected,
-                theme.palette.primary.main,
-                theme.palette.m3.outline,
-              )}
+              pathOptions={
+                selected
+                  ? { color: '#000000', weight: 14, opacity: 0 }
+                  : lineStyle(false, theme.palette.primary.main, theme.palette.m3.outline)
+              }
               eventHandlers={{ click: () => onSelect(route.id) }}
             >
               <Tooltip sticky>{routeName(route)}</Tooltip>
             </Polyline>
           )
         })}
-        {selected ? <CheckpointMarkers checkpoints={selected.checkpoints} /> : null}
+        {selected ? <TroubleMarkers checkpoints={selected.checkpoints} layer={layer} /> : null}
         {/* Rings around the first and last checkpoints; clicks go through to the dots. */}
         {start ? (
           <CircleMarker
@@ -113,14 +183,14 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
             pathOptions={{ color: theme.palette.m3.tertiary, weight: 3, fill: false }}
           />
         ) : null}
-        {bounds ? <FitToRoutes bounds={bounds} /> : null}
+        {bounds ? <FitToRoutes bounds={bounds} inset={inset} /> : null}
       </MapContainer>
       {routes.length > 0 ? (
         <ToggleButtonGroup
           size="small"
           exclusive
           value={layer}
-          onChange={(_event, value: HeatLayer | null) => value && setLayer(value)}
+          onChange={(_event, value: MapLayer | null) => value && setLayer(value)}
           aria-label="Colour the route by"
           sx={{
             position: 'absolute',
@@ -128,24 +198,25 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
             right: 12,
             zIndex: 1000, // above Leaflet's panes
             bgcolor: 'm3.surfaceContainer',
-            boxShadow: 1,
+            boxShadow: 2,
           }}
         >
-          <ToggleButton value="risk">Risk</ToggleButton>
+          <ToggleButton value="overall">Overall</ToggleButton>
           <ToggleButton value="wind">Wind</ToggleButton>
           <ToggleButton value="rain">Rain</ToggleButton>
           <ToggleButton value="snow">Snow</ToggleButton>
         </ToggleButtonGroup>
       ) : null}
+      {selected ? <Summary route={selected} layer={layer} top={compact ? 60 : 12} /> : null}
       {routes.length > 0 ? (
-        <RiskLegend layer={layer} />
+        <RiskLegend layer={layer} bottom={inset + 24} />
       ) : (
         <Chip
           label="Plan a trip to see the routes here"
           sx={{
             position: 'absolute',
             left: '50%',
-            bottom: 32,
+            top: 16,
             transform: 'translateX(-50%)',
             zIndex: 1000, // above Leaflet's panes
             bgcolor: 'm3.surfaceContainerHigh',

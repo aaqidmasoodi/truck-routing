@@ -30,7 +30,7 @@ function PlanResults({
   const count = plan.routes.length
 
   return (
-    <Box sx={{ mt: 3 }}>
+    <Box>
       {departure && planned.timeline.length > 1 ? (
         <DepartureSlider
           departure={departure}

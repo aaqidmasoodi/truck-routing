@@ -58,34 +58,3 @@ export function stretches(
   }
   return result
 }
-
-export type HeatLayer = 'risk' | 'wind' | 'rain' | 'snow'
-
-// Where each scale tops out: the edge of No Travel for that condition.
-export const HEAT_TOP = { wind: 55, rain: 1, snow: 3 } as const
-// The light ends are deep enough to still show up on the pale basemap.
-const HEAT_RAMP = {
-  wind: ['#b2dfdb', '#004d40'],
-  rain: ['#bbdefb', '#0d47a1'],
-  snow: ['#e1bee7', '#4a148c'],
-} as const
-export const NO_DATA = '#bdbdbd'
-
-function mix(from: string, to: string, share: number): string {
-  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16)
-  const parts = [0, 1, 2].map((i) =>
-    Math.round(channel(from, i) + (channel(to, i) - channel(from, i)) * share),
-  )
-  return `#${parts.map((part) => part.toString(16).padStart(2, '0')).join('')}`
-}
-
-/** The colour of a weather value on its layer's light-to-dark scale. */
-export function heatColour(layer: Exclude<HeatLayer, 'risk'>, value: number): string {
-  const share = Math.min(Math.max(value / HEAT_TOP[layer], 0), 1)
-  const [from, to] = HEAT_RAMP[layer]
-  return mix(from, to, share)
-}
-
-export function heatRamp(layer: Exclude<HeatLayer, 'risk'>): readonly [string, string] {
-  return HEAT_RAMP[layer]
-}

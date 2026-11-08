@@ -2,13 +2,22 @@ import type { PlannedRoute } from './api/client'
 
 export type LatLng = [number, number]
 
-// CARTO's light "Positron" basemap: free with attribution, and quiet enough that the
-// routes and risk colours stand out.
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas'
+
+// Esri's light gray canvas: quiet enough that the routes and risk colours stand out, and
+// it needs no API key. (CARTO's free basemap, used before, now asks for one.)
 export const TILES = {
-  url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  url: `${ESRI}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
   attribution:
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ' +
-    '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+    'Tiles &copy; <a href="https://www.esri.com">Esri</a>, HERE, Garmin, ' +
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom: 16,
+}
+
+/** Place names, drawn over the routes so they stay readable. */
+export const LABELS = {
+  url: `${ESRI}/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+  maxZoom: 16,
 }
 
 /** South-west and north-east corners that take in every route. */

@@ -25,7 +25,7 @@ function withTimeline(): TripPlan {
       },
       {
         recommended_route_id: 'route-2',
-        reason: '65 fewer miles of Severe weather',
+        reason: '65 fewer miles of dangerous weather',
         safe_to_travel: true,
         routes: [
           { id: 'route-2', score, unknown_weather_miles: 0, conditions: [calm, calm] },
@@ -75,7 +75,7 @@ describe('planAt', () => {
     const later = planAt(withTimeline(), 1)
 
     expect(later.recommended_route_id).toBe('route-2')
-    expect(later.reason).toBe('65 fewer miles of Severe weather')
+    expect(later.reason).toBe('65 fewer miles of dangerous weather')
     expect(later.routes.map((route) => route.id)).toEqual(['route-2', 'route-1'])
     expect(later.routes[1]?.score.severe_miles).toBe(65)
   })
