@@ -5,6 +5,13 @@ Helps a truck driver pick the safest route based on weather, load weight and tra
 - `backend/`: Django + Django REST Framework API
 - `frontend/`: React + Vite + TypeScript + Material UI
 
+## How risk is worked out
+
+Every checkpoint gets a risk level for wind, rain and snow using the thresholds from
+the brief (see `backend/routing/risk.py`). Levels go Low, Moderate, High, Severe,
+No Travel. When a value sits exactly on the edge between two bands it counts as the
+higher one, so 25 mph wind is Moderate and 0.25 in/hr of rain is High.
+
 ## Running locally
 
 Backend (Python 3.12+):
