@@ -49,3 +49,13 @@ describe('RecommendationCard', () => {
     expect(card).toHaveTextContent('Least risky is Route 1')
   })
 })
+
+describe('RecommendationCard worst conditions', () => {
+  it('keeps the label and its level together on one line', () => {
+    renderWithTheme(<RecommendationCard plan={tripPlan([plannedRoute('route-1')])} />)
+
+    const row = screen.getByLabelText('Worst conditions')
+    expect(row).toHaveTextContent(/^Worst conditions on the way:/)
+    expect(row).toHaveStyle({ flexWrap: 'nowrap' })
+  })
+})

@@ -40,20 +40,20 @@ function RecommendationCard({ plan }: { plan: TripPlan }) {
             ? `${plan.reason}.`
             : 'Every route has weather too bad to drive in. Try leaving later.'}
         </Typography>
+        <Typography variant="body2">
+          {formatMiles(best.distance_miles)} · {formatDuration(best.duration_minutes)}
+          {arriving
+            ? ` · arrives ${formatArrival(arriving, best.checkpoints[0]?.eta ?? arriving)}`
+            : ''}
+        </Typography>
+        {/* Its own line, label and chip together, so the chip never reads as an instruction. */}
         <Stack
           direction="row"
           spacing={1}
-          sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}
+          aria-label="Worst conditions"
+          sx={{ alignItems: 'center', mt: 1, flexWrap: 'nowrap' }}
         >
-          <Typography variant="body2">
-            {formatMiles(best.distance_miles)} · {formatDuration(best.duration_minutes)}
-            {arriving
-              ? ` · arrives ${formatArrival(arriving, best.checkpoints[0]?.eta ?? arriving)}`
-              : ''}
-          </Typography>
-          <Typography variant="body2" sx={{ pl: 1 }}>
-            Worst conditions:
-          </Typography>
+          <Typography variant="body2">Worst conditions on the way:</Typography>
           <RiskChip level={worst} />
         </Stack>
         {cost ? (
