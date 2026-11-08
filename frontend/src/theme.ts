@@ -1,5 +1,6 @@
 import { createTheme } from '@mui/material/styles'
 import { buildColorScheme, type ColorScheme } from './colorScheme'
+import { CONDITIONS } from './conditions'
 
 interface RiskColor {
   main: string
@@ -17,15 +18,11 @@ declare module '@mui/material/styles' {
   }
 }
 
-// Low to No Travel. Traffic-light colours drivers already read without a legend,
-// each with a text colour that passes contrast on top of it.
-const risk: RiskColor[] = [
-  { main: '#2e7d32', contrastText: '#ffffff' },
-  { main: '#f9a825', contrastText: '#1b1b1f' },
-  { main: '#ef6c00', contrastText: '#1b1b1f' },
-  { main: '#c62828', contrastText: '#ffffff' },
-  { main: '#4a148c', contrastText: '#ffffff' },
-]
+// Clear to Do not drive, in the traffic-light colours from `conditions.ts`.
+const risk: RiskColor[] = CONDITIONS.map(({ colour, text }) => ({
+  main: colour,
+  contrastText: text,
+}))
 
 const SEED = '#0b57d0'
 const m3 = buildColorScheme(SEED)

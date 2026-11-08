@@ -15,13 +15,16 @@ import Chip from '@mui/material/Chip'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useTheme } from '@mui/material/styles'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import WarningIcon from '@mui/icons-material/Warning'
 import type { PlannedRoute } from '../api/client'
-import type { HeatLayer } from '../heatmap'
+import { CAUSE_NAMES, condition, troubleSpots, type MapLayer } from '../conditions'
+import { formatMiles } from '../format'
 import { boundsOf, drawOrder, LABELS, lineStyle, TILES, type LatLng } from '../map'
 import { routeName } from '../routes'
-import CheckpointMarkers from './CheckpointMarkers'
 import HeatBand from './HeatBand'
 import RiskLegend from './RiskLegend'
+import TroubleMarkers from './TroubleMarkers'
 
 // Before any plan: the North Atlantic, with North America and Europe both in view.
 const WORLD_VIEW = { center: [42, -40] as LatLng, zoom: 3 }
@@ -60,9 +63,42 @@ function FitToRoutes({ bounds, inset }: { bounds: [LatLng, LatLng]; inset: numbe
   return null
 }
 
+/** One line over the map: "Clear all the way", or the worst thing on the selected route. */
+function Summary({ route, layer, top }: { route: PlannedRoute; layer: MapLayer; top: number }) {
+  const spots = troubleSpots(route.checkpoints, layer)
+  const worst = spots.reduce<(typeof spots)[number] | undefined>(
+    (a, b) => (!a || b.level > a.level ? b : a),
+    undefined,
+  )
+  const look = condition(worst?.level ?? 0)
+  const what = worst?.cause ? CAUSE_NAMES[worst.cause].toLowerCase() : 'bad weather'
+  const label = worst
+    ? `${look.label}: ${what} for ${formatMiles(worst.miles)}` +
+      (spots.length > 1 ? `, ${spots.length - 1} more` : '')
+    : 'Clear all the way'
+  return (
+    <Chip
+      icon={worst ? <WarningIcon /> : <CheckCircleIcon />}
+      label={label}
+      sx={{
+        position: 'absolute',
+        left: 12,
+        top,
+        zIndex: 1000, // above Leaflet's panes
+        maxWidth: 'calc(100% - 24px)',
+        bgcolor: look.colour,
+        color: look.text,
+        fontWeight: 500,
+        boxShadow: 2,
+        '& .MuiChip-icon': { color: look.text },
+      }}
+    />
+  )
+}
+
 function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: RouteMapProps) {
   const theme = useTheme()
-  const [layer, setLayer] = useState<HeatLayer>('risk')
+  const [layer, setLayer] = useState<MapLayer>('overall')
   const bounds = boundsOf(routes)
   const selected = routes.find((route) => route.id === selectedId)
   const first = routes[0]?.points
@@ -113,22 +149,23 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
         {selected ? <HeatBand route={selected} layer={layer} /> : null}
         {drawOrder(routes, selectedId).map((route) => {
           const selected = route.id === selectedId
+          // The selected route is drawn in its colours above; this keeps it clickable.
           return (
             <Polyline
               key={`${route.id}-${selected}`}
               positions={route.points as LatLng[]}
-              pathOptions={lineStyle(
-                selected,
-                theme.palette.primary.main,
-                theme.palette.m3.outline,
-              )}
+              pathOptions={
+                selected
+                  ? { color: '#000000', weight: 14, opacity: 0 }
+                  : lineStyle(false, theme.palette.primary.main, theme.palette.m3.outline)
+              }
               eventHandlers={{ click: () => onSelect(route.id) }}
             >
               <Tooltip sticky>{routeName(route)}</Tooltip>
             </Polyline>
           )
         })}
-        {selected ? <CheckpointMarkers checkpoints={selected.checkpoints} /> : null}
+        {selected ? <TroubleMarkers checkpoints={selected.checkpoints} layer={layer} /> : null}
         {/* Rings around the first and last checkpoints; clicks go through to the dots. */}
         {start ? (
           <CircleMarker
@@ -153,7 +190,7 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
           size="small"
           exclusive
           value={layer}
-          onChange={(_event, value: HeatLayer | null) => value && setLayer(value)}
+          onChange={(_event, value: MapLayer | null) => value && setLayer(value)}
           aria-label="Colour the route by"
           sx={{
             position: 'absolute',
@@ -164,12 +201,13 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
             boxShadow: 2,
           }}
         >
-          <ToggleButton value="risk">Risk</ToggleButton>
+          <ToggleButton value="overall">Overall</ToggleButton>
           <ToggleButton value="wind">Wind</ToggleButton>
           <ToggleButton value="rain">Rain</ToggleButton>
           <ToggleButton value="snow">Snow</ToggleButton>
         </ToggleButtonGroup>
       ) : null}
+      {selected ? <Summary route={selected} layer={layer} top={compact ? 60 : 12} /> : null}
       {routes.length > 0 ? (
         <RiskLegend layer={layer} bottom={inset + 24} />
       ) : (

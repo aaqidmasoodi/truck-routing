@@ -95,17 +95,17 @@ def why_ahead(best: RouteScore, other: RouteScore) -> str:
     """The first ranking rule that puts `best` ahead of `other`, in plain words."""
     if round(best.no_travel_miles, 2) < round(other.no_travel_miles, 2):
         if best.no_travel_miles == 0:
-            return f"Avoids {_number(other.no_travel_miles)} mi of No Travel weather"
+            return f"Avoids {_number(other.no_travel_miles)} mi too dangerous to drive"
         fewer = other.no_travel_miles - best.no_travel_miles
-        return f"{_number(fewer)} fewer miles of No Travel weather"
+        return f"{_number(fewer)} fewer miles too dangerous to drive"
     if round(best.severe_miles, 2) < round(other.severe_miles, 2):
-        return f"{_number(other.severe_miles - best.severe_miles)} fewer miles of Severe weather"
+        return f"{_number(other.severe_miles - best.severe_miles)} fewer miles of dangerous weather"
     if round(best.high_miles, 2) < round(other.high_miles, 2):
-        return f"{_number(other.high_miles - best.high_miles)} fewer miles of High risk weather"
+        return f"{_number(other.high_miles - best.high_miles)} fewer miles of bad weather"
     if round(best.average_risk, 4) < round(other.average_risk, 4):
-        return f"Lower average risk ({best.average_risk:.2f} vs {other.average_risk:.2f})"
+        return "Calmer weather overall"
     if round(best.duration_minutes, 2) < round(other.duration_minutes, 2):
         # Nobody plans a drive to a tenth of a minute.
         saved = max(1, round(other.duration_minutes - best.duration_minutes))
         return f"{saved} min faster"
-    return "Same risk and time"
+    return "Same weather and time"

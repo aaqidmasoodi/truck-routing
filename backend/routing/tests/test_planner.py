@@ -86,7 +86,7 @@ def test_safest_route_is_recommended_over_the_fastest() -> None:
     plan = recommend([fast, slow])
 
     assert [p.route.id for p in plan.routes] == ["slow", "fast"]
-    assert plan.reason == "10 fewer miles of Severe weather"
+    assert plan.reason == "10 fewer miles of dangerous weather"
     assert plan.safe_to_travel
 
 
@@ -150,7 +150,7 @@ def test_plan_trip_puts_it_all_together(monkeypatch: pytest.MonkeyPatch) -> None
     assert len(lookups) == 1
     assert [p.route.id for p in plan.routes] == ["route-2", "route-1"]
     assert plan.routes[1].score.severe_miles == pytest.approx(35)
-    assert plan.reason.endswith("fewer miles of Severe weather")
+    assert plan.reason.endswith("fewer miles of dangerous weather")
 
 
 def test_plan_is_logged(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:

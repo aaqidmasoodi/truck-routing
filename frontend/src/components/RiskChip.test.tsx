@@ -4,16 +4,16 @@ import { renderWithTheme } from '../test/render'
 import RiskChip from './RiskChip'
 
 describe('RiskChip', () => {
-  it('shows the level name in its colour', () => {
+  it('shows the level in plain words and its colour', () => {
     renderWithTheme(<RiskChip level={{ value: 3, label: 'Severe' }} />)
 
-    const chip = screen.getByText('Severe').closest('.MuiChip-root')
-    expect(chip).toHaveStyle({ backgroundColor: '#c62828' })
+    const chip = screen.getByText('Dangerous').closest('.MuiChip-root')
+    expect(chip).toHaveStyle({ backgroundColor: '#d32f2f' })
   })
 
-  it('says unknown when there is no forecast', () => {
+  it('says when there is no forecast', () => {
     renderWithTheme(<RiskChip level={null} />)
 
-    expect(screen.getByText('Unknown')).toBeInTheDocument()
+    expect(screen.getByText('No forecast')).toBeInTheDocument()
   })
 })

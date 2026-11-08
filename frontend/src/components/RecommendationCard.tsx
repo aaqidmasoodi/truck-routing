@@ -38,7 +38,7 @@ function RecommendationCard({ plan }: { plan: TripPlan }) {
         <Typography sx={{ mb: 1.5 }}>
           {safe
             ? `${plan.reason}.`
-            : 'Every route runs into No Travel weather. Consider leaving later or waiting it out.'}
+            : 'Every route has weather too bad to drive in. Try leaving later.'}
         </Typography>
         <Stack
           direction="row"
@@ -52,7 +52,7 @@ function RecommendationCard({ plan }: { plan: TripPlan }) {
               : ''}
           </Typography>
           <Typography variant="body2" sx={{ pl: 1 }}>
-            Worst on the way:
+            Worst conditions:
           </Typography>
           <RiskChip level={worst} />
         </Stack>

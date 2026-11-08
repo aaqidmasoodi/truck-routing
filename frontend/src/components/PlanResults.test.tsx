@@ -27,7 +27,7 @@ function stormLater(): TripPlan {
     ...plan,
     timeline: [
       moment('route-1', 'route-2', '10 min faster'),
-      moment('route-2', 'route-1', '40 fewer miles of Severe weather'),
+      moment('route-2', 'route-1', '40 fewer miles of dangerous weather'),
     ],
   }
 }
@@ -56,7 +56,7 @@ describe('PlanResults', () => {
     fireEvent.keyDown(screen.getByRole('slider'), { key: 'ArrowRight' })
 
     expect(card).toHaveTextContent('Take Route 2')
-    expect(card).toHaveTextContent('40 fewer miles of Severe weather')
+    expect(card).toHaveTextContent('40 fewer miles of dangerous weather')
     expect(screen.getByText(/^Leave 1 h later/)).toBeInTheDocument()
   })
 

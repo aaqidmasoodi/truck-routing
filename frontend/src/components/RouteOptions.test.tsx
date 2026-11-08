@@ -44,8 +44,8 @@ describe('RouteOptions', () => {
       <RouteOptions plan={tripPlan([safe, stormy])} selectedId="route-2" onSelect={() => {}} />,
     )
 
-    expect(screen.getByText('No High or Severe weather')).toBeInTheDocument()
-    expect(screen.getByText('12 mi Severe · 30 mi High')).toBeInTheDocument()
+    expect(screen.getByText('No dangerous stretches')).toBeInTheDocument()
+    expect(screen.getByText('12 mi dangerous · 30 mi slow down')).toBeInTheDocument()
   })
 
   it('shows each checkpoint with its risk', async () => {
@@ -56,8 +56,8 @@ describe('RouteOptions', () => {
     await userEvent.click(screen.getByRole('button', { name: '3 checkpoints' }))
 
     expect(screen.getByText('Checkpoint 1')).toBeInTheDocument()
-    expect(screen.getByText('Severe')).toBeInTheDocument()
-    expect(screen.getByText('Unknown')).toBeInTheDocument()
+    expect(screen.getByText('Dangerous')).toBeInTheDocument()
+    expect(screen.getAllByText('No forecast').length).toBeGreaterThan(0)
     expect(screen.getByText('60 mi in · No forecast')).toBeInTheDocument()
   })
 })
@@ -68,7 +68,7 @@ describe('RouteOptions summary', () => {
       <RouteOptions plan={tripPlan([safe, stormy])} selectedId="route-2" onSelect={() => {}} />,
     )
 
-    expect(screen.getAllByRole('img', { name: /Risk along the route/ })).toHaveLength(2)
+    expect(screen.getAllByRole('img', { name: /Conditions along the route/ })).toHaveLength(2)
     expect(screen.getAllByText(/^Arrives /)).toHaveLength(2)
   })
 })
@@ -88,11 +88,11 @@ describe('RouteOptions selection', () => {
 })
 
 describe('riskyMiles', () => {
-  it('leads with No Travel when there is any', () => {
+  it('leads with do-not-drive miles when there are any', () => {
     const route = plannedRoute('route-1', {
       score: { no_travel_miles: 4, severe_miles: 0, high_miles: 0.2, average_risk: 1 },
     })
 
-    expect(riskyMiles(route)).toBe('4 mi No Travel')
+    expect(riskyMiles(route)).toBe('4 mi do not drive')
   })
 })

@@ -16,14 +16,14 @@ describe('RiskStrip', () => {
 
     const stretches = screen.getAllByTestId('risk-stretch')
     expect(stretches.map((s) => getComputedStyle(s).flexGrow)).toEqual(['5', '10', '5'])
-    expect(stretches[1]).toHaveStyle({ backgroundColor: '#c62828' })
+    expect(stretches[1]).toHaveStyle({ backgroundColor: '#d32f2f' })
   })
 
   it('describes the risk for screen readers', () => {
     renderWithTheme(<RiskStrip checkpoints={checkpoints} />)
 
     expect(screen.getByRole('img')).toHaveAccessibleName(
-      'Risk along the route. 0 mi: Low, 10 mi: Severe, 20 mi: no forecast',
+      'Conditions along the route. 0 mi: Clear, 10 mi: Dangerous, 20 mi: No forecast',
     )
   })
 })

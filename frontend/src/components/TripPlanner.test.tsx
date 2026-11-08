@@ -89,7 +89,7 @@ describe('TripPlanner', () => {
     fakeApi(() =>
       Response.json(
         tripPlan([plannedRoute('route-2'), plannedRoute('route-1')], {
-          reason: '12 fewer miles of Severe weather',
+          reason: '12 fewer miles of dangerous weather',
         }),
       ),
     )
@@ -101,7 +101,7 @@ describe('TripPlanner', () => {
 
     expect(await screen.findByText('2 routes found, safest first')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Recommendation' })).toHaveTextContent(
-      'Take Route 212 fewer miles of Severe weather.',
+      'Take Route 212 fewer miles of dangerous weather.',
     )
     expect(planCall()).toMatchObject({ weight_lb: 36000, spacing_miles: 10 })
   })
@@ -247,7 +247,7 @@ describe('TripPlanner', () => {
       fakeApi(() =>
         Response.json(
           tripPlan([plannedRoute('route-2'), plannedRoute('route-1')], {
-            reason: '12 fewer miles of Severe weather',
+            reason: '12 fewer miles of dangerous weather',
           }),
         ),
       )
@@ -258,7 +258,7 @@ describe('TripPlanner', () => {
 
       expect(await screen.findByText('2 routes found, safest first')).toBeInTheDocument()
       expect(screen.getByRole('region', { name: 'Recommendation' })).toHaveTextContent(
-        'Take Route 2 12 fewer miles of Severe weather.',
+        'Take Route 2 12 fewer miles of dangerous weather.',
       )
       await userEvent.click(screen.getByRole('button', { name: 'Show Route 1 on the map' }))
       expect(screen.getByRole('button', { name: 'Show Route 1 on the map' })).toHaveAttribute(
