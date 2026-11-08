@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderWithTheme } from '../test/render'
 import { checkpoint, plannedRoute, SEVERE, tripPlan } from '../test/fixtures'
 import { riskyMiles } from '../routes'
@@ -19,7 +19,9 @@ const stormy = plannedRoute('route-1', {
 
 describe('RouteOptions', () => {
   it('lists routes safest first and marks the recommendation', () => {
-    renderWithTheme(<RouteOptions plan={tripPlan([safe, stormy])} />)
+    renderWithTheme(
+      <RouteOptions plan={tripPlan([safe, stormy])} selectedId="route-2" onSelect={() => {}} />,
+    )
 
     const [first, second] = screen.getAllByRole('listitem')
     expect(within(first!).getByText('Route 2')).toBeInTheDocument()
@@ -28,7 +30,9 @@ describe('RouteOptions', () => {
   })
 
   it('marks the fastest route, which may not be the safest', () => {
-    renderWithTheme(<RouteOptions plan={tripPlan([safe, stormy])} />)
+    renderWithTheme(
+      <RouteOptions plan={tripPlan([safe, stormy])} selectedId="route-2" onSelect={() => {}} />,
+    )
 
     const [first, second] = screen.getAllByRole('listitem')
     expect(within(second!).getByText('Fastest')).toBeInTheDocument()
@@ -36,14 +40,18 @@ describe('RouteOptions', () => {
   })
 
   it('summarises the risky miles on each route', () => {
-    renderWithTheme(<RouteOptions plan={tripPlan([safe, stormy])} />)
+    renderWithTheme(
+      <RouteOptions plan={tripPlan([safe, stormy])} selectedId="route-2" onSelect={() => {}} />,
+    )
 
     expect(screen.getByText('No High or Severe weather')).toBeInTheDocument()
     expect(screen.getByText('12 mi Severe · 30 mi High')).toBeInTheDocument()
   })
 
   it('shows each checkpoint with its risk', async () => {
-    renderWithTheme(<RouteOptions plan={tripPlan([stormy])} />)
+    renderWithTheme(
+      <RouteOptions plan={tripPlan([stormy])} selectedId="route-2" onSelect={() => {}} />,
+    )
 
     await userEvent.click(screen.getByRole('button', { name: '3 checkpoints' }))
 
@@ -51,6 +59,20 @@ describe('RouteOptions', () => {
     expect(screen.getByText('Severe')).toBeInTheDocument()
     expect(screen.getByText('Unknown')).toBeInTheDocument()
     expect(screen.getByText('60 mi in · No forecast')).toBeInTheDocument()
+  })
+})
+
+describe('RouteOptions selection', () => {
+  it('marks the selected route and reports clicks', async () => {
+    const onSelect = vi.fn()
+    renderWithTheme(
+      <RouteOptions plan={tripPlan([safe, stormy])} selectedId="route-2" onSelect={onSelect} />,
+    )
+
+    const [first] = screen.getAllByRole('listitem')
+    expect(first).toHaveAttribute('aria-current', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'Show Route 1 on the map' }))
+    expect(onSelect).toHaveBeenCalledWith('route-1')
   })
 })
 

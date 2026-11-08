@@ -36,7 +36,7 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
     <Box
       sx={{
         height: { xs: 320, md: 440 },
-        borderRadius: 4,
+        borderRadius: '16px',
         overflow: 'hidden',
         border: 1,
         borderColor: 'm3.outlineVariant',
