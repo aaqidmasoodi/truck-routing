@@ -137,6 +137,21 @@ different one. If every route has No Travel weather the card turns red and says 
 Each route card has a risk strip, the route as one bar from start to finish with every
 stretch in its checkpoint's risk colour, so the routes can be compared at a glance.
 
+## Leaving later
+
+Above the results is a slider from "Now" to "+48 h". Dragging it updates everything
+straight away: the recommendation, the order of the routes, the risk strips, the map
+colours and the arrival times. A "Safest" button jumps to the hour with the least
+dangerous weather.
+
+It doesn't ask the server on every move. Each plan comes with a `timeline`: the same trip
+planned for every departure hour from 0 to 48, worked out by the server from the forecasts
+it already fetched, using the same risk rules and ranking (`plan_trip` in
+`backend/routing/planner.py`). Each checkpoint in it is a short row,
+`[risk, wind risk, rain risk, snow risk, wind mph, rain in/hr, snow in/hr]`, and responses
+are gzipped, so the whole timeline stays small. The frontend rebuilds the plan for any
+hour from it (`frontend/src/timeline.ts`).
+
 ## The map
 
 Routes are drawn with [Leaflet](https://leafletjs.com) on CARTO's light basemap
@@ -148,6 +163,10 @@ code only loads once there are results, so the first page load stays small.
 The selected route's checkpoints are dots in their risk colour (grey when there's no
 forecast for that time), with a key in the corner. Clicking one shows when the truck gets
 there, the forecast, and why it got its level, for example "Severe because of wind".
+
+Under the selected route is a wide heatmap band, one stretch per checkpoint (split halfway
+between checkpoints, like the risk miles). The buttons in the corner colour it by risk, or
+by wind, rain or snow on a light-to-dark scale that tops out at the No Travel threshold.
 
 ## How routes are ranked
 
