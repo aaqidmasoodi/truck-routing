@@ -9,6 +9,8 @@ interface PlaceSearchProps {
   label: string
   value: Place | null
   onChange: (place: Place | null) => void
+  /** A problem with the chosen place, shown under the field. */
+  error?: string | undefined
 }
 
 interface SearchResult {
@@ -20,12 +22,14 @@ interface SearchResult {
 const MIN_LETTERS = 2
 const TYPING_PAUSE_MS = 300
 
-function PlaceSearch({ label, value, onChange }: PlaceSearchProps) {
+function PlaceSearch({ label, value, onChange, error }: PlaceSearchProps) {
   const [input, setInput] = useState('')
   const [result, setResult] = useState<SearchResult>({ query: '', places: [], failed: false })
 
   const query = input.trim()
-  const ready = query.length >= MIN_LETTERS
+  // Once a place is picked the box shows its full name; that's not a new search.
+  const showingChoice = value !== null && query === value.display_name
+  const ready = query.length >= MIN_LETTERS && !showingChoice
 
   useEffect(() => {
     if (!ready) return
@@ -54,7 +58,7 @@ function PlaceSearch({ label, value, onChange }: PlaceSearchProps) {
 
   return (
     <Autocomplete
-      options={ready ? result.places : []}
+      options={showingChoice ? [value] : ready ? result.places : []}
       value={value}
       onChange={(_event, place) => onChange(place)}
       onInputChange={(_event, text) => setInput(text)}
@@ -67,8 +71,8 @@ function PlaceSearch({ label, value, onChange }: PlaceSearchProps) {
         <TextField
           {...params}
           label={label}
-          error={failed}
-          helperText={failed ? 'Place search is unavailable right now' : ' '}
+          error={failed || Boolean(error)}
+          helperText={failed ? 'Place search is unavailable right now' : (error ?? ' ')}
           slotProps={{
             ...params.slotProps,
             input: {

@@ -1,8 +1,9 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { plannedRoute, tripPlan } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
+import { toLocalInput } from '../tripDraft'
 import TripPlanner from './TripPlanner'
 
 const places: Record<string, object> = {
@@ -86,6 +87,68 @@ describe('TripPlanner', () => {
       'Take Route 2. 12 fewer miles of Severe weather.',
     )
     expect(planCall()).toMatchObject({ weight_lb: 36000, spacing_miles: 10 })
+  })
+
+  it('swaps start and destination', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Swap start and destination' }))
+
+    expect(screen.getByLabelText('From')).toHaveValue('Chicago, Illinois, United States')
+    expect(screen.getByLabelText('To')).toHaveValue('Denver, Colorado, United States')
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+    expect(planCall().origin).toEqual({ latitude: 41.88, longitude: -87.63 })
+  })
+
+  it('sends a chosen departure time', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+    const later = new Date(Date.now() + 3 * 60 * 60 * 1000)
+    later.setSeconds(0, 0)
+
+    await pickTrip()
+    fireEvent.change(screen.getByLabelText('Leave at'), {
+      target: { value: toLocalInput(later) },
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    expect(planCall().departure).toBe(later.toISOString())
+  })
+
+  it('says when the departure is too far ahead', async () => {
+    renderWithTheme(<TripPlanner />)
+
+    fireEvent.change(screen.getByLabelText('Leave at'), {
+      target: { value: toLocalInput(new Date(Date.now() + 72 * 60 * 60 * 1000)) },
+    })
+
+    expect(screen.getByText('Pick a time within the next 48 hours')).toBeInTheDocument()
+  })
+
+  it('will not plan a trip to the same place', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await userEvent.type(screen.getByLabelText('From'), 'Denv')
+    await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
+    await userEvent.type(screen.getByLabelText('To'), 'Denv')
+    await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
+    await userEvent.type(screen.getByLabelText('Truck weight'), '36000')
+
+    expect(screen.getByText('Pick a destination different from the start')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Find routes' })).toBeDisabled()
+  })
+
+  it('plans the trip when Enter is pressed', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.type(screen.getByLabelText('Truck weight'), '{Enter}')
+
+    expect(await screen.findByText('1 route found, safest first')).toBeInTheDocument()
   })
 
   it('warns when every route has No Travel weather', async () => {

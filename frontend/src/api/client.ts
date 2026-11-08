@@ -22,6 +22,8 @@ export interface Trip {
   destination: Coordinates
   weightLb: number
   spacingMiles: Spacing
+  /** When the truck leaves, as an ISO date-time. Leave it out to mean now. */
+  departure?: string
 }
 
 export class ApiError extends Error {
@@ -65,6 +67,7 @@ export function planTrip(trip: Trip): Promise<TripPlan> {
     destination: { latitude: trip.destination.latitude, longitude: trip.destination.longitude },
     weight_lb: trip.weightLb,
     spacing_miles: trip.spacingMiles,
+    ...(trip.departure ? { departure: trip.departure } : {}),
   }
   return request('/api/plan/', {
     method: 'POST',
