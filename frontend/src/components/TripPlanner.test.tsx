@@ -313,6 +313,8 @@ describe('recent searches', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
     await screen.findByText('1 route found, safest first')
     first.unmount()
+    // Come back to the plain page, not the trip's own link.
+    window.history.replaceState(null, '', '/')
   }
 
   it('offers a recent trip that fills in both ends', async () => {
@@ -416,5 +418,56 @@ describe('truck weight', () => {
     await userEvent.type(screen.getByLabelText('Truck weight'), '120000')
 
     expect(screen.getByRole('slider', { name: 'Truck weight in pounds' })).toHaveValue('80000')
+  })
+})
+
+describe('shareable links', () => {
+  it('puts the planned trip in the page address', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip('42000')
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+    await screen.findByText('1 route found, safest first')
+
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('fromName')).toBe('Denver, Colorado, United States')
+    expect(params.get('to')).toBe('41.88000,-87.63000')
+    expect(params.get('w')).toBe('42000')
+    expect(params.get('every')).toBe('25')
+  })
+
+  it('opens a link straight onto the planned trip', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    window.history.replaceState(
+      null,
+      '',
+      '/?from=39.74,-104.98&fromName=Denver%2C+Colorado&to=41.88,-87.63&toName=Chicago%2C+Illinois&w=30000&every=10',
+    )
+
+    renderWithTheme(<TripPlanner />)
+
+    expect(await screen.findByText('1 route found, safest first')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Denver → Chicago' })).toBeInTheDocument()
+    expect(planCall()).toMatchObject({
+      origin: { latitude: 39.74, longitude: -104.98 },
+      weight_lb: 30000,
+      spacing_miles: 10,
+    })
+  })
+
+  it('copies the link', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+    await screen.findByText('1 route found, safest first')
+    await userEvent.click(screen.getByRole('button', { name: 'Copy link to this trip' }))
+
+    expect(writeText).toHaveBeenCalledWith(window.location.href)
+    expect(await screen.findByText('Link copied')).toBeInTheDocument()
   })
 })

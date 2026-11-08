@@ -1,4 +1,4 @@
-import { useRef, useState, type FocusEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FocusEvent, type FormEvent } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
@@ -34,6 +34,7 @@ import {
   toLocalInput,
   type TripDraft,
 } from '../tripDraft'
+import { tripSearch } from '../tripLink'
 import PlaceSearch from './PlaceSearch'
 import SpacingPicker from './SpacingPicker'
 
@@ -43,12 +44,20 @@ interface TripFormProps {
   onSubmit: (trip: Trip, name: string) => void
   /** Called on any edit, since old results no longer match the form. */
   onChange: () => void
+  /** A trip to start from, such as one opened from a shared link; it's planned straight away. */
+  initialDraft?: TripDraft | null
   /** Small fields and no hints, so the whole form fits on a phone without scrolling. */
   compact?: boolean
 }
 
-function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProps) {
-  const [draft, setDraft] = useState<TripDraft>(emptyDraft)
+function TripForm({
+  loading,
+  onSubmit,
+  onChange,
+  initialDraft = null,
+  compact = false,
+}: TripFormProps) {
+  const [draft, setDraft] = useState<TripDraft>(initialDraft ?? emptyDraft)
   // The clock moves on, so this is refreshed on every edit and checked again on submit.
   const [now, setNow] = useState(() => new Date())
   const { trip, errors } = checkDraft(draft, now)
@@ -86,9 +95,30 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
       setRecent((trips) =>
         rememberTrip(trips, { origin: draft.origin!, destination: draft.destination! }),
       )
-      onSubmit(latest.trip, `${draft.origin?.name ?? ''} → ${draft.destination?.name ?? ''}`)
+      plan(latest.trip, draft)
     }
   }
+
+  /** Plan the trip, and put it in the page address so the link can be shared. */
+  const plan = (checked: Trip, planned: TripDraft) => {
+    try {
+      window.history.replaceState(null, '', tripSearch(planned) || window.location.pathname)
+    } catch {
+      // Some embedded browsers refuse; the trip is still planned.
+    }
+    onSubmit(checked, `${planned.origin?.name ?? ''} → ${planned.destination?.name ?? ''}`)
+  }
+
+  // A trip opened from a link is planned once, as soon as the page loads.
+  const plannedFromLink = useRef(false)
+  useEffect(() => {
+    if (plannedFromLink.current || !initialDraft) return
+    plannedFromLink.current = true
+    const linked = checkDraft(initialDraft, new Date())
+    if (linked.trip) plan(linked.trip, initialDraft)
+    // Only ever on the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const swapButton = (
     <Tooltip title="Swap start and destination">
