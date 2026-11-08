@@ -7,13 +7,14 @@ const LEVELS = ['Low', 'Moderate', 'High', 'Severe', 'No Travel']
 const UNITS = { wind: 'mph', rain: 'in/h', snow: 'in/h' } as const
 
 /** Key to the colours on the map, laid over its corner. */
-function RiskLegend({ layer = 'risk' }: { layer?: HeatLayer }) {
+function RiskLegend({ layer = 'risk', bottom = 24 }: { layer?: HeatLayer; bottom?: number }) {
   return (
     <Box
       sx={{
         position: 'absolute',
         left: 12,
-        bottom: 24,
+        bottom,
+        transition: 'bottom 250ms ease',
         zIndex: 1000, // above Leaflet's panes
         px: 1.5,
         py: 1,

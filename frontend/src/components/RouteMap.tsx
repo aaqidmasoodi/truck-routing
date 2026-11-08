@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css'
 import {
   CircleMarker,
   MapContainer,
+  Pane,
   Polyline,
   TileLayer,
   Tooltip,
@@ -16,7 +17,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useTheme } from '@mui/material/styles'
 import type { PlannedRoute } from '../api/client'
 import type { HeatLayer } from '../heatmap'
-import { boundsOf, drawOrder, lineStyle, TILES, type LatLng } from '../map'
+import { boundsOf, drawOrder, LABELS, lineStyle, TILES, type LatLng } from '../map'
 import { routeName } from '../routes'
 import CheckpointMarkers from './CheckpointMarkers'
 import HeatBand from './HeatBand'
@@ -24,26 +25,42 @@ import RiskLegend from './RiskLegend'
 
 // Before any plan: the North Atlantic, with North America and Europe both in view.
 const WORLD_VIEW = { center: [42, -40] as LatLng, zoom: 3 }
+// Wait for the bottom sheet to finish sliding before zooming to the routes again.
+const SETTLE_MS = 300
+// The fewest pixels of map height the routes are squeezed into.
+const MIN_VISIBLE = 120
 
 interface RouteMapProps {
   routes: PlannedRoute[]
   selectedId: string
   onSelect: (routeId: string) => void
+  /** Pixels at the bottom covered by something else, like the planner sheet on a phone. */
+  inset?: number
+  /** Leave out the zoom buttons, for touch screens where pinching does the job. */
+  compact?: boolean
 }
 
-/** Zoom to the routes whenever a new set comes in, but not on every re-render. */
-function FitToRoutes({ bounds }: { bounds: [LatLng, LatLng] }) {
+/** Zoom to the routes when a new set comes in or the visible area changes size. */
+function FitToRoutes({ bounds, inset }: { bounds: [LatLng, LatLng]; inset: number }) {
   const map = useMap()
   const key = bounds.flat().join(',')
   useEffect(() => {
-    map.fitBounds(bounds, { padding: [32, 32] })
+    const timer = setTimeout(() => {
+      map.invalidateSize()
+      // Fit the routes into the strip of map the sheet leaves free, keeping at least a
+      // little room even when the sheet covers most of the screen.
+      const free = map.getSize().y - 64 - 32
+      const covered = Math.max(0, Math.min(inset, free - MIN_VISIBLE))
+      map.fitBounds(bounds, { paddingTopLeft: [24, 64], paddingBottomRight: [24, covered + 32] })
+    }, SETTLE_MS)
+    return () => clearTimeout(timer)
     // `key` stands in for `bounds`, which is a new array each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, key])
+  }, [map, key, inset])
   return null
 }
 
-function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
+function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: RouteMapProps) {
   const theme = useTheme()
   const [layer, setLayer] = useState<HeatLayer>('risk')
   const bounds = boundsOf(routes)
@@ -58,8 +75,18 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         position: 'relative',
         height: '100%',
         overflow: 'hidden',
+        bgcolor: '#e8e8e8', // the tiles' own grey, so loading doesn't flash white
         // Leaflet's own controls and popups, nudged towards Material 3.
-        '& .leaflet-bar a': { color: 'm3.onSurface' },
+        '& .leaflet-container': { bgcolor: 'transparent', fontFamily: 'inherit' },
+        '& .leaflet-bar': {
+          border: 'none',
+          boxShadow: 2,
+          borderRadius: '12px',
+          overflow: 'hidden',
+        },
+        '& .leaflet-bar a': { color: 'm3.onSurface', bgcolor: 'm3.surfaceContainer' },
+        '& .leaflet-control-attribution': { fontSize: 10 },
+        '& .leaflet-bottom': { bottom: inset, transition: 'bottom 250ms ease' },
         '& .leaflet-popup-content-wrapper, & .leaflet-popup-tip': {
           bgcolor: 'm3.surfaceContainerHigh',
           color: 'm3.onSurface',
@@ -73,10 +100,16 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         center={start ? [start[0] ?? 0, start[1] ?? 0] : WORLD_VIEW.center}
         zoom={start ? 6 : WORLD_VIEW.zoom}
         zoomControl={false}
+        // Quarter steps, so the routes fill the space they're fitted into.
+        zoomSnap={0.25}
         style={{ height: '100%', width: '100%' }}
       >
-        <ZoomControl position="bottomright" />
-        <TileLayer url={TILES.url} attribution={TILES.attribution} />
+        {compact ? null : <ZoomControl position="bottomright" />}
+        <TileLayer url={TILES.url} attribution={TILES.attribution} maxZoom={TILES.maxZoom} />
+        {/* Place names above the routes but below the markers, and never in a click's way. */}
+        <Pane name="labels" style={{ zIndex: 450, pointerEvents: 'none' }}>
+          <TileLayer url={LABELS.url} maxZoom={LABELS.maxZoom} />
+        </Pane>
         {selected ? <HeatBand route={selected} layer={layer} /> : null}
         {drawOrder(routes, selectedId).map((route) => {
           const selected = route.id === selectedId
@@ -113,7 +146,7 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
             pathOptions={{ color: theme.palette.m3.tertiary, weight: 3, fill: false }}
           />
         ) : null}
-        {bounds ? <FitToRoutes bounds={bounds} /> : null}
+        {bounds ? <FitToRoutes bounds={bounds} inset={inset} /> : null}
       </MapContainer>
       {routes.length > 0 ? (
         <ToggleButtonGroup
@@ -128,7 +161,7 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
             right: 12,
             zIndex: 1000, // above Leaflet's panes
             bgcolor: 'm3.surfaceContainer',
-            boxShadow: 1,
+            boxShadow: 2,
           }}
         >
           <ToggleButton value="risk">Risk</ToggleButton>
@@ -138,14 +171,14 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         </ToggleButtonGroup>
       ) : null}
       {routes.length > 0 ? (
-        <RiskLegend layer={layer} />
+        <RiskLegend layer={layer} bottom={inset + 24} />
       ) : (
         <Chip
           label="Plan a trip to see the routes here"
           sx={{
             position: 'absolute',
             left: '50%',
-            bottom: 32,
+            top: 16,
             transform: 'translateX(-50%)',
             zIndex: 1000, // above Leaflet's panes
             bgcolor: 'm3.surfaceContainerHigh',

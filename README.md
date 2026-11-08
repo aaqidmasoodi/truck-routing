@@ -117,12 +117,12 @@ curl -X POST localhost:8000/api/plan/ -H "Content-Type: application/json" \
        "weight_lb": 36000, "spacing_miles": 25}'
 ```
 
-| Field | Required | Notes |
-|---|---|---|
-| `origin`, `destination` | yes | `{"latitude": ..., "longitude": ...}` |
-| `weight_lb` | yes | Gross weight, 1 to 200,000 lb |
-| `spacing_miles` | no | 10, 25 (default) or 50 |
-| `departure` | no | ISO date-time within the next 48 hours, now by default |
+| Field                   | Required | Notes                                                  |
+| ----------------------- | -------- | ------------------------------------------------------ |
+| `origin`, `destination` | yes      | `{"latitude": ..., "longitude": ...}`                  |
+| `weight_lb`             | yes      | Gross weight, 1 to 200,000 lb                          |
+| `spacing_miles`         | no       | 10, 25 (default) or 50                                 |
+| `departure`             | no       | ISO date-time within the next 48 hours, now by default |
 
 The answer lists the routes safest first, with `recommended_route_id`, a plain `reason`
 ("12 fewer miles of Severe weather"), and `safe_to_travel`, which is false when even the
@@ -161,12 +161,20 @@ hour from it (`frontend/src/timeline.ts`).
 ## The map
 
 The page is laid out like a map app. On a laptop or desktop the planner is a panel on the
-left that scrolls on its own, and the map fills the rest of the window. On a phone the map
-is pinned to the top of the screen and the planner scrolls underneath it, so the routes
-stay in view while you read the results.
+left and the map fills the rest of the window. The panel shows one page at a time: the trip
+form, with a big **Find routes** button at the bottom, then the routes it found, with a back
+button that returns to the form as it was left. A dot in the top bar shows whether the
+server is answering (green) or not (red).
 
-Routes are drawn with [Leaflet](https://leafletjs.com) on CARTO's light basemap
-(`frontend/src/components/RouteMap.tsx`). Every option is on the map; the selected one is
+On a phone the map fills the screen and the planner is a sheet over its bottom. The form is
+compact enough to fit without scrolling. After **Find routes** the sheet shows a short
+version of the results at about half height, with the map zoomed to the routes in the
+space above it. Tapping the sheet's header slides it down out of the way, and the map
+zooms again to use the room.
+
+Routes are drawn with [Leaflet](https://leafletjs.com) on Esri's light gray canvas
+basemap, with its place-name layer on top (`frontend/src/map.ts`). It needs no API key.
+CARTO's free basemap, used at first, now asks for one. Every option is on the map; the selected one is
 bold and drawn on top, and it starts as the recommended route. Clicking a line or a route
 card selects it in both places. The map zooms to fit the routes for each new plan. Leaflet,
 MUI and React are each built into their own chunk, so a change to the app doesn't make
@@ -263,13 +271,13 @@ starts again.
 
 Settings read from the environment:
 
-| Variable                 | Default                  | Meaning                                   |
-| ------------------------ | ------------------------ | ----------------------------------------- |
-| `DJANGO_DEBUG`           | `1` (`0` in the image)   | Debug mode; off needs a secret key        |
-| `DJANGO_SECRET_KEY`      | a dev key when debugging | Django's secret key                       |
-| `DJANGO_ALLOWED_HOSTS`   | `localhost,127.0.0.1`    | Hostnames Django will answer to           |
-| `CORS_ALLOWED_ORIGINS`   | `http://localhost:5173`  | Only needed if the frontend is elsewhere  |
-| `LOG_LEVEL`              | `DEBUG` or `INFO`        | How much the `routing` logger prints      |
+| Variable               | Default                  | Meaning                                  |
+| ---------------------- | ------------------------ | ---------------------------------------- |
+| `DJANGO_DEBUG`         | `1` (`0` in the image)   | Debug mode; off needs a secret key       |
+| `DJANGO_SECRET_KEY`    | a dev key when debugging | Django's secret key                      |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1`    | Hostnames Django will answer to          |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173`  | Only needed if the frontend is elsewhere |
+| `LOG_LEVEL`            | `DEBUG` or `INFO`        | How much the `routing` logger prints     |
 
 ## API docs and types
 
