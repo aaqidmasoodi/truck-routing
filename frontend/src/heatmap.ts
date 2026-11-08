@@ -58,3 +58,20 @@ export function stretches(
   }
   return result
 }
+
+/** The point halfway along a path, measured along the path itself. */
+export function midpointAlong(path: LatLng[]): LatLng | null {
+  if (path.length === 0) return null
+  const legs = path.slice(1).map((point, i) => milesBetween(path[i]!, point))
+  let left = legs.reduce((sum, miles) => sum + miles, 0) / 2
+  for (const [i, miles] of legs.entries()) {
+    if (left <= miles) {
+      const share = miles > 0 ? left / miles : 0
+      const [lat1, lon1] = path[i]!
+      const [lat2, lon2] = path[i + 1]!
+      return [lat1 + (lat2 - lat1) * share, lon1 + (lon2 - lon1) * share]
+    }
+    left -= miles
+  }
+  return path[path.length - 1]!
+}

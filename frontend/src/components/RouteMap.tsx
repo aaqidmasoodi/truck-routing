@@ -235,7 +235,7 @@ function RouteMap({
             </Polyline>
           )
         })}
-        {selected ? <TroubleMarkers checkpoints={selected.checkpoints} layer={layer} /> : null}
+        {selected ? <TroubleMarkers route={selected} layer={layer} /> : null}
         {/* The start and destination, marked like the From and To fields, above the routes. */}
         {start ? (
           <Marker

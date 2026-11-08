@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkpoint } from './test/fixtures'
-import { milesBetween, stretches } from './heatmap'
+import { midpointAlong, milesBetween, stretches } from './heatmap'
 import type { LatLng } from './map'
 
 // Due north along the meridian, about 69.1 miles per degree.
@@ -57,5 +57,35 @@ describe('stretches', () => {
 
   it('has nothing to draw without a shape', () => {
     expect(stretches([[0, 0]], checkpoints, 100)).toEqual([])
+  })
+})
+
+describe('midpointAlong', () => {
+  it('finds the halfway point along a straight path', () => {
+    const [lat, lon] = midpointAlong([
+      [0, 0],
+      [0, 10],
+    ])!
+
+    expect(lat).toBeCloseTo(0)
+    expect(lon).toBeCloseTo(5)
+  })
+
+  it('measures along the path, not between its ends', () => {
+    // Up 10 degrees, then across 2: halfway is still on the long first leg.
+    const [lat, lon] = midpointAlong([
+      [0, 0],
+      [10, 0],
+      [10, 2],
+    ])!
+
+    expect(lon).toBeCloseTo(0)
+    expect(lat).toBeGreaterThan(5)
+    expect(lat).toBeLessThan(7)
+  })
+
+  it('copes with a single point or none', () => {
+    expect(midpointAlong([[1, 2]])).toEqual([1, 2])
+    expect(midpointAlong([])).toBeNull()
   })
 })

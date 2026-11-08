@@ -94,6 +94,7 @@ describe('troubleSpots', () => {
     expect(spot?.worst.weather?.wind_mph).toBe(41)
     expect(spot?.checkpoint.mile).toBe(20)
     expect(spot?.first.mile).toBe(10)
+    expect([spot?.fromIndex, spot?.toIndex]).toEqual([1, 3])
   })
 
   it('starts a new spot when the level or the cause changes', () => {

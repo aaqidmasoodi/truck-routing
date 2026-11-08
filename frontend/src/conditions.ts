@@ -148,6 +148,9 @@ export interface TroubleSpot {
   checkpoint: PlannedCheckpoint
   /** Where the stretch starts, for when the truck gets there. */
   first: PlannedCheckpoint
+  /** The first and last checkpoints in the stretch, by position on the route. */
+  fromIndex: number
+  toIndex: number
   /** The checkpoint with the strongest reading, for the numbers in the popup. */
   worst: PlannedCheckpoint
   fromMile: number
@@ -161,8 +164,9 @@ export interface TroubleSpot {
  */
 export function troubleSpots(checkpoints: PlannedCheckpoint[], layer: MapLayer): TroubleSpot[] {
   const runs: PlannedCheckpoint[][] = []
+  const starts: number[] = []
   let key = ''
-  for (const checkpoint of checkpoints) {
+  for (const [index, checkpoint] of checkpoints.entries()) {
     const level = levelOn(layer, checkpoint.risk)
     if (level === null || level === 0 || !checkpoint.risk) {
       key = ''
@@ -170,10 +174,13 @@ export function troubleSpots(checkpoints: PlannedCheckpoint[], layer: MapLayer):
     }
     const next = `${level}:${causeOn(layer, checkpoint.risk) ?? ''}`
     if (next === key) runs[runs.length - 1]!.push(checkpoint)
-    else runs.push([checkpoint])
+    else {
+      runs.push([checkpoint])
+      starts.push(index)
+    }
     key = next
   }
-  return runs.map((run) => {
+  return runs.map((run, number) => {
     const first = run[0]!
     const cause = causeOn(layer, first.risk!)
     const strength = (c: PlannedCheckpoint) =>
@@ -189,6 +196,8 @@ export function troubleSpots(checkpoints: PlannedCheckpoint[], layer: MapLayer):
       cause,
       checkpoint: run[Math.floor(run.length / 2)]!,
       first,
+      fromIndex: starts[number]!,
+      toIndex: starts[number]! + run.length - 1,
       worst: run.reduce((a, b) => (strength(b) > strength(a) ? b : a)),
       fromMile: first.mile,
       toMile: run[run.length - 1]!.mile,
