@@ -5,7 +5,7 @@ import Skeleton from '@mui/material/Skeleton'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { TripPlan } from '../api/client'
-import { routeName } from '../routes'
+import RecommendationCard from './RecommendationCard'
 import RouteOptions from './RouteOptions'
 
 // Leaflet is the biggest dependency, so it only loads once there's something to map.
@@ -17,19 +17,10 @@ function PlanResults({ plan }: { plan: TripPlan }) {
   const selectedId = picked?.plan === plan ? picked.routeId : plan.recommended_route_id
   const select = (routeId: string) => setPicked({ plan, routeId })
 
-  const best = plan.routes[0]
   const count = plan.routes.length
   return (
     <Box sx={{ mt: 3 }}>
-      {best && plan.safe_to_travel ? (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Take {routeName(best)}. {plan.reason}.
-        </Alert>
-      ) : (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          Every route runs into No Travel weather. Consider leaving later.
-        </Alert>
-      )}
+      <RecommendationCard plan={plan} />
       {plan.routes.some((route) => route.unknown_weather_miles > 0) ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
           Part of the trip is beyond the forecast, so those miles count as Low risk.
