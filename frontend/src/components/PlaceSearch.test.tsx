@@ -38,6 +38,20 @@ describe('PlaceSearch', () => {
     expect(fetch).toHaveBeenCalledWith('/api/places/?q=Denver', expect.anything())
   })
 
+  it('does not search again for the place just picked', async () => {
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => Response.json([denver]))
+    const { rerender } = render(<PlaceSearch label="From" value={null} onChange={() => {}} />)
+
+    await userEvent.type(screen.getByLabelText('From'), 'Denv')
+    await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
+    rerender(<PlaceSearch label="From" value={denver} onChange={() => {}} />)
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
   it('waits for at least two letters before searching', async () => {
     const fetch = vi.spyOn(globalThis, 'fetch')
     render(<PlaceSearch label="From" value={null} onChange={() => {}} />)

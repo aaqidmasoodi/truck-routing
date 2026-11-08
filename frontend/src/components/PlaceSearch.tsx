@@ -27,7 +27,9 @@ function PlaceSearch({ label, value, onChange, error }: PlaceSearchProps) {
   const [result, setResult] = useState<SearchResult>({ query: '', places: [], failed: false })
 
   const query = input.trim()
-  const ready = query.length >= MIN_LETTERS
+  // Once a place is picked the box shows its full name; that's not a new search.
+  const showingChoice = value !== null && query === value.display_name
+  const ready = query.length >= MIN_LETTERS && !showingChoice
 
   useEffect(() => {
     if (!ready) return
@@ -56,7 +58,7 @@ function PlaceSearch({ label, value, onChange, error }: PlaceSearchProps) {
 
   return (
     <Autocomplete
-      options={ready ? result.places : []}
+      options={showingChoice ? [value] : ready ? result.places : []}
       value={value}
       onChange={(_event, place) => onChange(place)}
       onInputChange={(_event, text) => setInput(text)}
