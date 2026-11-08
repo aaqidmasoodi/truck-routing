@@ -148,6 +148,8 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
         bgcolor: dark ? '#262626' : '#e8e8e8',
         // Leaflet's own controls and popups, nudged towards Material 3.
         '& .leaflet-container': { bgcolor: 'transparent', fontFamily: 'inherit' },
+        // Chrome draws a focus box around a route line or marker once it's clicked.
+        '& .leaflet-interactive:focus, & .trouble-marker:focus': { outline: 'none' },
         '& .leaflet-bar': {
           border: 'none',
           boxShadow: 2,
