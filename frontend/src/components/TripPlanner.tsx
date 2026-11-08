@@ -187,6 +187,12 @@ function TripPlanner() {
   const backToForm = () => {
     setPage('form')
     setSheetState('half')
+    // Back to editing, so the address is the plain page again until a trip is planned.
+    try {
+      window.history.replaceState(null, '', window.location.pathname)
+    } catch {
+      // Some embedded browsers refuse; the form still works.
+    }
   }
 
   const title = page === 'form' ? 'Plan a trip' : tripName
