@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TripPlan } from './api/client'
 import { plannedRoute, tripPlan } from './test/fixtures'
-import { planAt, unpackRow } from './timeline'
+import { planAt, safestHour, unpackRow } from './timeline'
 
 const calm = [0, 0, 0, 0, 5, 0, 0]
 const gusty = [3, 3, 0, 0, 48, 0, 0]
@@ -92,5 +92,40 @@ describe('planAt', () => {
     const plan = withTimeline()
 
     expect(planAt(plan, 30)).toBe(plan)
+  })
+})
+
+describe('safestHour', () => {
+  const moment = (severe: number, high = 0) => ({
+    recommended_route_id: 'route-1',
+    reason: '',
+    safe_to_travel: true,
+    routes: [
+      {
+        id: 'route-1',
+        score: { ...score, severe_miles: severe, high_miles: high },
+        unknown_weather_miles: 0,
+        conditions: [],
+      },
+    ],
+  })
+
+  it('finds the hour with the least severe weather', () => {
+    const plan = {
+      ...withTimeline(),
+      timeline: [moment(40), moment(20), moment(0, 30), moment(0, 10)],
+    }
+
+    expect(safestHour(plan)).toBe(3)
+  })
+
+  it('prefers the earliest of equally safe hours', () => {
+    const plan = { ...withTimeline(), timeline: [moment(10), moment(0), moment(0)] }
+
+    expect(safestHour(plan)).toBe(1)
+  })
+
+  it('is now without a timeline', () => {
+    expect(safestHour({ ...withTimeline(), timeline: [] })).toBe(0)
   })
 })

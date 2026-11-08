@@ -8,15 +8,48 @@ const DEPARTURE = '2026-11-09T08:00:00Z'
 describe('DepartureSlider', () => {
   it('reports the hours as the driver moves it', () => {
     const onChange = vi.fn()
-    render(<DepartureSlider departure={DEPARTURE} hours={0} maxHours={48} onChange={onChange} />)
+    render(
+      <DepartureSlider
+        departure={DEPARTURE}
+        hours={0}
+        maxHours={48}
+        safestHours={0}
+        onChange={onChange}
+      />,
+    )
 
     fireEvent.keyDown(screen.getByRole('slider'), { key: 'ArrowRight' })
 
     expect(onChange).toHaveBeenCalledWith(1)
   })
 
+  it('offers a jump to the safest hour', () => {
+    const onChange = vi.fn()
+    render(
+      <DepartureSlider
+        departure={DEPARTURE}
+        hours={0}
+        maxHours={48}
+        safestHours={9}
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Safest: 9 h later' }))
+
+    expect(onChange).toHaveBeenCalledWith(9)
+  })
+
   it('marks every six hours', () => {
-    render(<DepartureSlider departure={DEPARTURE} hours={0} maxHours={48} onChange={() => {}} />)
+    render(
+      <DepartureSlider
+        departure={DEPARTURE}
+        hours={0}
+        maxHours={48}
+        safestHours={0}
+        onChange={() => {}}
+      />,
+    )
 
     expect(screen.getByText('Now')).toBeInTheDocument()
     expect(screen.getByText('+48 h')).toBeInTheDocument()

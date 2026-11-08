@@ -78,3 +78,30 @@ export function describeDeparture(departure: string, hours: number): string {
   if (hours === 0) return 'Leave as planned'
   return `Leave ${hours} h later, ${departureClock(departure, hours)}`
 }
+
+function compare(a: number[], b: number[]): number {
+  for (let i = 0; i < a.length; i++) {
+    const difference = (a[i] ?? 0) - (b[i] ?? 0)
+    if (difference !== 0) return difference
+  }
+  return 0
+}
+
+/**
+ * The departure hour whose recommended route has the least dangerous weather, using
+ * the same order as the server's ranking. Ties go to the earliest hour.
+ */
+export function safestHour(plan: TripPlan): number {
+  let best = 0
+  let bestKey: number[] | null = null
+  plan.timeline.forEach((moment, hours) => {
+    const score = moment.routes[0]?.score
+    if (!score) return
+    const key = [score.no_travel_miles, score.severe_miles, score.high_miles, score.average_risk]
+    if (!bestKey || compare(key, bestKey) < 0) {
+      best = hours
+      bestKey = key
+    }
+  })
+  return best
+}

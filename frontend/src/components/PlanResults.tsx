@@ -5,7 +5,7 @@ import Skeleton from '@mui/material/Skeleton'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { TripPlan } from '../api/client'
-import { planAt } from '../timeline'
+import { planAt, safestHour } from '../timeline'
 import DepartureSlider from './DepartureSlider'
 import RecommendationCard from './RecommendationCard'
 import RouteOptions from './RouteOptions'
@@ -33,6 +33,7 @@ function PlanResults({ plan: planned }: { plan: TripPlan }) {
           departure={departure}
           hours={hours}
           maxHours={planned.timeline.length - 1}
+          safestHours={safestHour(planned)}
           onChange={(value) => setLater({ plan: planned, hours: value })}
         />
       ) : null}
