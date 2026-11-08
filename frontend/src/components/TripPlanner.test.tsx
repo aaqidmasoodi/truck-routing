@@ -49,8 +49,8 @@ describe('TripPlanner', () => {
   it('shows the routes it finds', async () => {
     fakeApi(() =>
       Response.json([
-        { id: 'route-1', distance_miles: 1003, duration_minutes: 905, points: [] },
-        { id: 'route-2', distance_miles: 1040, duration_minutes: 930, points: [] },
+        { id: 'route-1', distance_miles: 1003, duration_minutes: 905, points: [], checkpoints: [] },
+        { id: 'route-2', distance_miles: 1040, duration_minutes: 930, points: [], checkpoints: [] },
       ]),
     )
     render(<TripPlanner />)
@@ -74,5 +74,21 @@ describe('TripPlanner', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       "There's no road route between these places.",
     )
+  })
+})
+
+describe('TripPlanner spacing', () => {
+  it('asks for checkpoints at the chosen spacing', async () => {
+    fakeApi(() => Response.json([]))
+    render(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: '10 mi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    const routeCall = vi
+      .mocked(fetch)
+      .mock.calls.find(([input]) => String(input).includes('/api/routes/'))
+    expect(JSON.parse(String(routeCall?.[1]?.body)).spacing_miles).toBe(10)
   })
 })

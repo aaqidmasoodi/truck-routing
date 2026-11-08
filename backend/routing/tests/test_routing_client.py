@@ -62,7 +62,7 @@ def test_find_routes_opens_its_own_client(monkeypatch: pytest.MonkeyPatch) -> No
     transport = httpx.MockTransport(lambda request: httpx.Response(200, json=OSRM_RESPONSE))
     real_client = httpx.Client
     monkeypatch.setattr(
-        httpx, "Client", lambda **kwargs: real_client(transport=transport, **kwargs)
+        httpx, "Client", lambda **kwargs: real_client(**{**kwargs, "transport": transport})
     )
 
     assert len(find_routes((39.74, -104.98), (41.88, -87.63))) == 2

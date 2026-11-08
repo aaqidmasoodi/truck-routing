@@ -74,6 +74,23 @@ const theme = createTheme({
     MuiChip: {
       styleOverrides: { root: { borderRadius: 8 }, sizeMedium: { height: 32 } },
     },
+    // Material 3 segmented buttons: pill ends, tonal fill when selected.
+    MuiToggleButtonGroup: {
+      styleOverrides: { root: { borderRadius: 20 } },
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          borderColor: m3.outline,
+          color: m3.onSurface,
+          '&.Mui-selected, &.Mui-selected:hover': {
+            backgroundColor: m3.secondaryContainer,
+            color: m3.onSecondaryContainer,
+          },
+        },
+      },
+    },
     MuiOutlinedInput: {
       styleOverrides: { root: { borderRadius: 4 } },
     },

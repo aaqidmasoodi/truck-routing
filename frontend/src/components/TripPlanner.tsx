@@ -5,10 +5,11 @@ import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
-import { ApiError, findRoutes, type Place, type RouteOption } from '../api/client'
+import { ApiError, findRoutes, type Place, type RouteOption, type Spacing } from '../api/client'
 import { debug } from '../debug'
 import PlaceSearch from './PlaceSearch'
 import RouteOptions from './RouteOptions'
+import SpacingPicker from './SpacingPicker'
 
 type Lookup =
   | { state: 'idle' }
@@ -19,18 +20,22 @@ type Lookup =
 function TripPlanner() {
   const [origin, setOrigin] = useState<Place | null>(null)
   const [destination, setDestination] = useState<Place | null>(null)
+  const [spacing, setSpacing] = useState<Spacing>(25)
   const [lookup, setLookup] = useState<Lookup>({ state: 'idle' })
 
-  const choose = (setPlace: (place: Place | null) => void) => (place: Place | null) => {
-    setPlace(place)
-    setLookup({ state: 'idle' })
-  }
+  // Any change to the trip makes the old results stale.
+  const change =
+    <T,>(set: (value: T) => void) =>
+    (value: T) => {
+      set(value)
+      setLookup({ state: 'idle' })
+    }
 
   const search = async () => {
     if (!origin || !destination) return
     setLookup({ state: 'loading' })
     try {
-      const routes = await findRoutes(origin, destination)
+      const routes = await findRoutes(origin, destination, spacing)
       debug('trip', `${routes.length} routes`, origin.display_name, '->', destination.display_name)
       setLookup({ state: 'done', routes })
     } catch (error) {
@@ -51,21 +56,27 @@ function TripPlanner() {
       </Typography>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
         <Box sx={{ flex: 1 }}>
-          <PlaceSearch label="From" value={origin} onChange={choose(setOrigin)} />
+          <PlaceSearch label="From" value={origin} onChange={change(setOrigin)} />
         </Box>
         <Box sx={{ flex: 1 }}>
-          <PlaceSearch label="To" value={destination} onChange={choose(setDestination)} />
+          <PlaceSearch label="To" value={destination} onChange={change(setDestination)} />
         </Box>
       </Stack>
-      <Button
-        variant="contained"
-        onClick={search}
-        disabled={!origin || !destination || lookup.state === 'loading'}
-        loading={lookup.state === 'loading'}
-        sx={{ mt: 1 }}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        sx={{ mt: 1, alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
       >
-        Find routes
-      </Button>
+        <SpacingPicker value={spacing} onChange={change(setSpacing)} />
+        <Button
+          variant="contained"
+          onClick={search}
+          disabled={!origin || !destination || lookup.state === 'loading'}
+          loading={lookup.state === 'loading'}
+        >
+          Find routes
+        </Button>
+      </Stack>
 
       {lookup.state === 'failed' ? (
         <Alert severity="error" sx={{ mt: 3 }}>

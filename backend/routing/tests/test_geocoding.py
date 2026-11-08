@@ -65,7 +65,7 @@ def test_search_opens_its_own_client_when_none_is_given(monkeypatch: pytest.Monk
     transport = httpx.MockTransport(lambda request: httpx.Response(200, json={}))
     real_client = httpx.Client
     monkeypatch.setattr(
-        httpx, "Client", lambda **kwargs: real_client(transport=transport, **kwargs)
+        httpx, "Client", lambda **kwargs: real_client(**{**kwargs, "transport": transport})
     )
 
     assert search_places("Nowhere") == []

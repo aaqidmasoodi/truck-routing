@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDuration, formatMiles } from './format'
+import { formatArrival, formatDuration, formatMiles } from './format'
 
 describe('formatMiles', () => {
   it('rounds and groups thousands', () => {
@@ -15,5 +15,17 @@ describe('formatDuration', () => {
     [59.6, '1 h'],
   ])('formats %s minutes as %s', (minutes, expected) => {
     expect(formatDuration(minutes)).toBe(expected)
+  })
+})
+
+describe('formatArrival', () => {
+  const leaving = '2026-11-09T08:00:00Z'
+
+  it('shows just the time on the day you leave', () => {
+    expect(formatArrival('2026-11-09T10:45:00Z', leaving, 'UTC')).toBe('10:45 AM')
+  })
+
+  it('adds the weekday once the trip runs into the next day', () => {
+    expect(formatArrival('2026-11-10T01:15:00Z', leaving, 'UTC')).toBe('Tue 1:15 AM')
   })
 })

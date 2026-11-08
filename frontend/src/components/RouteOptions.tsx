@@ -1,16 +1,21 @@
+import { useState } from 'react'
+import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Chip from '@mui/material/Chip'
+import Collapse from '@mui/material/Collapse'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { RouteOption } from '../api/client'
 import { formatDuration, formatMiles } from '../format'
+import CheckpointList from './CheckpointList'
 
 interface RouteOptionsProps {
   routes: RouteOption[]
 }
 
 function RouteOptions({ routes }: RouteOptionsProps) {
+  const [open, setOpen] = useState<string | null>(null)
   const fastest = Math.min(...routes.map((route) => route.duration_minutes))
 
   return (
@@ -33,6 +38,19 @@ function RouteOptions({ routes }: RouteOptionsProps) {
               {formatMiles(route.distance_miles)} · {formatDuration(route.duration_minutes)}
             </Typography>
           </CardContent>
+          <Button
+            size="small"
+            onClick={() => setOpen(open === route.id ? null : route.id)}
+            aria-expanded={open === route.id}
+            sx={{ ml: 1, mb: 1 }}
+          >
+            {route.checkpoints.length} checkpoints
+          </Button>
+          <Collapse in={open === route.id} unmountOnExit>
+            <CardContent sx={{ pt: 0 }}>
+              <CheckpointList checkpoints={route.checkpoints} />
+            </CardContent>
+          </Collapse>
         </Card>
       ))}
     </Stack>
