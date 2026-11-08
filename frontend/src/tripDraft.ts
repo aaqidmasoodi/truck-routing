@@ -17,6 +17,11 @@ export interface DraftErrors {
 }
 
 export const MAX_WEIGHT_LB = 200_000
+// A typical loaded 18-wheeler; empty ones weigh about 35,000 lb.
+export const DEFAULT_WEIGHT_LB = 65_000
+// The slider covers ordinary trucks, up to the US legal limit; heavier ones are typed.
+export const SLIDER_MIN_LB = 10_000
+export const SLIDER_MAX_LB = 80_000
 // The forecast only reaches about two days ahead, so neither can the departure.
 export const FORECAST_HOURS = 48
 const HOUR_MS = 60 * 60 * 1000
@@ -26,7 +31,7 @@ const GRACE_MS = 5 * 60 * 1000
 export const emptyDraft: TripDraft = {
   origin: null,
   destination: null,
-  weightText: '',
+  weightText: String(DEFAULT_WEIGHT_LB),
   spacing: 25,
   leaveAt: '',
 }
