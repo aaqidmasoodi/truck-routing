@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type RefObject,
@@ -57,15 +58,29 @@ const SWIPE_PX = 40
 // The app bar and the sheet's own header, which a full sheet stops below.
 const FULL_SHEET_OFFSET = '124px'
 
-/** How tall an element is, kept up to date as it grows and shrinks. */
+// The map only needs the sheet's height once it stops moving, not on every frame of a slide.
+const HEIGHT_SETTLE_MS = 120
+
+// Shared so an empty map gets the same list every time and doesn't redraw.
+const NO_ROUTES: TripPlan['routes'] = []
+const IDLE: Lookup = { state: 'idle' }
+
+/** How tall an element is, once it has stopped growing or shrinking. */
 function useHeight(ref: RefObject<HTMLElement | null>): number {
   const [height, setHeight] = useState(0)
   useEffect(() => {
     const element = ref.current
     if (!element || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() => setHeight(element.offsetHeight))
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer)
+      timer = setTimeout(() => setHeight(element.offsetHeight), HEIGHT_SETTLE_MS)
+    })
     observer.observe(element)
-    return () => observer.disconnect()
+    return () => {
+      clearTimeout(timer)
+      observer.disconnect()
+    }
   }, [ref])
   return height
 }
@@ -107,7 +122,9 @@ function TripPlanner() {
   const touch = useRef<{ y: number; atTop: boolean } | null>(null)
 
   const planned = lookup.state === 'done' ? lookup.plan : null
-  const plan = planned ? planAt(planned, hours) : null
+  // Rebuilt only when the plan or the hour changes, so the map isn't handed new routes on
+  // every render.
+  const plan = useMemo(() => (planned ? planAt(planned, hours) : null), [planned, hours])
   // Follow the recommendation until the driver picks a route themselves.
   const selectedId =
     plan && picked && plan.routes.some((route) => route.id === picked)
@@ -192,7 +209,7 @@ function TripPlanner() {
       >
         <Suspense fallback={<Skeleton variant="rectangular" sx={{ height: '100%' }} />}>
           <RouteMap
-            routes={plan?.routes ?? []}
+            routes={plan?.routes ?? NO_ROUTES}
             selectedId={selectedId}
             onSelect={setPicked}
             inset={wide ? 0 : sheetHeight}
@@ -345,7 +362,10 @@ function TripPlanner() {
               loading={lookup.state === 'loading'}
               onSubmit={(trip, name) => void search(trip, name)}
               onChange={() =>
-                setLookup((current) => (current.state === 'loading' ? current : { state: 'idle' }))
+                // Unchanged unless there were results to clear, so typing doesn't redraw the map.
+                setLookup((current) =>
+                  current.state === 'loading' || current.state === 'idle' ? current : IDLE,
+                )
               }
             />
           </Box>

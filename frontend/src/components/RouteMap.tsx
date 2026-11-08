@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import {
   CircleMarker,
@@ -277,4 +277,5 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
   )
 }
 
-export default RouteMap
+// Skips redrawing (hundreds of route pieces) when nothing it shows has changed.
+export default memo(RouteMap)
