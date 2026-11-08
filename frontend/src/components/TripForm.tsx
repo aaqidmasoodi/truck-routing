@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FocusEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
@@ -140,16 +140,30 @@ function TripForm({
   const keepWeightOpen = (element: HTMLElement | null) => {
     if (element && !weightParts.current.includes(element)) weightParts.current.push(element)
   }
-  const closeUnlessStillOnWeight = (event: FocusEvent) => {
-    const next = event.relatedTarget as Node | null
-    if (!next || !weightParts.current.some((part) => part.contains(next))) setWeightOpen(false)
-  }
+  // Close only when the driver presses or tabs somewhere else. Watching for the weight box
+  // losing focus closed it mid-drag: pressing the slider's track, or touching it on a phone,
+  // takes focus from the box without giving it to the slider.
+  useEffect(() => {
+    if (!weightOpen) return
+    const closeIfElsewhere = (event: Event) => {
+      const target = event.target as Node | null
+      weightParts.current = weightParts.current.filter((part) => part.isConnected)
+      if (!target || !weightParts.current.some((part) => part.contains(target))) {
+        setWeightOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', closeIfElsewhere)
+    document.addEventListener('focusin', closeIfElsewhere)
+    return () => {
+      document.removeEventListener('pointerdown', closeIfElsewhere)
+      document.removeEventListener('focusin', closeIfElsewhere)
+    }
+  }, [weightOpen])
 
   const weight = (
     <TextField
       ref={keepWeightOpen}
       onFocus={() => setWeightOpen(true)}
-      onBlur={closeUnlessStillOnWeight}
       label="Truck weight"
       size={size}
       value={draft.weightText}
@@ -173,11 +187,7 @@ function TripForm({
   const typed = parseWeight(draft.weightText) ?? DEFAULT_WEIGHT_LB
   const weightSlider = (
     <Collapse in={weightOpen} unmountOnExit>
-      <Box
-        ref={keepWeightOpen}
-        onBlur={closeUnlessStillOnWeight}
-        sx={{ px: 1, pt: compact ? 0.5 : 0 }}
-      >
+      <Box ref={keepWeightOpen} sx={{ px: 1, pt: compact ? 0.5 : 0 }}>
         <Slider
           aria-label="Truck weight in pounds"
           size={compact ? 'small' : 'medium'}
