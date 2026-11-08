@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
 import AppBar from '@mui/material/AppBar'
 import Box from '@mui/material/Box'
+import IconButton from '@mui/material/IconButton'
 import Toolbar from '@mui/material/Toolbar'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { alpha } from '@mui/material/styles'
+import BrightnessAutoIcon from '@mui/icons-material/BrightnessAuto'
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined'
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined'
 import LocalShippingIcon from '@mui/icons-material/LocalShipping'
 import { getHealth } from './api/client'
 import TripPlanner from './components/TripPlanner'
 import { debug } from './debug'
+import type { ThemeChoice } from './Root'
 
 type ApiState = 'checking' | 'online' | 'offline'
 
@@ -42,7 +47,19 @@ function StatusDot({ state }: { state: ApiState }) {
   )
 }
 
-function App() {
+const THEME_BUTTON = {
+  system: { label: 'Theme: same as device', icon: <BrightnessAutoIcon /> },
+  light: { label: 'Theme: light', icon: <LightModeOutlinedIcon /> },
+  dark: { label: 'Theme: dark', icon: <DarkModeOutlinedIcon /> },
+} as const
+
+interface AppProps {
+  themeChoice?: ThemeChoice
+  /** Moves to the next theme: same as device, light, dark. */
+  onThemeChange?: () => void
+}
+
+function App({ themeChoice = 'system', onThemeChange }: AppProps) {
   const [api, setApi] = useState<ApiState>('checking')
 
   useEffect(() => {
@@ -96,6 +113,18 @@ function App() {
           >
             Weather-Aware Truck Routing
           </Typography>
+          {onThemeChange ? (
+            <Tooltip title={`${THEME_BUTTON[themeChoice].label} (tap to change)`}>
+              <IconButton
+                aria-label={THEME_BUTTON[themeChoice].label}
+                onClick={onThemeChange}
+                size="small"
+                sx={{ color: 'm3.onSurfaceVariant' }}
+              >
+                {THEME_BUTTON[themeChoice].icon}
+              </IconButton>
+            </Tooltip>
+          ) : null}
           <StatusDot state={api} />
         </Toolbar>
       </AppBar>

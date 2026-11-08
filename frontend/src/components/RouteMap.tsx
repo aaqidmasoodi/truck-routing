@@ -18,9 +18,18 @@ import { useTheme } from '@mui/material/styles'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import WarningIcon from '@mui/icons-material/Warning'
 import type { PlannedRoute } from '../api/client'
-import { CAUSE_NAMES, condition, troubleSpots, type MapLayer } from '../conditions'
+import { CAUSE_NAMES, condition, tint, troubleSpots, type MapLayer } from '../conditions'
 import { formatMiles } from '../format'
-import { boundsOf, drawOrder, LABELS, lineStyle, TILES, type LatLng } from '../map'
+import {
+  boundsOf,
+  DARK_LABELS,
+  DARK_TILES,
+  drawOrder,
+  LABELS,
+  lineStyle,
+  TILES,
+  type LatLng,
+} from '../map'
 import { routeName } from '../routes'
 import HeatBand from './HeatBand'
 import RiskLegend from './RiskLegend'
@@ -71,6 +80,7 @@ function Summary({ route, layer, top }: { route: PlannedRoute; layer: MapLayer; 
     undefined,
   )
   const look = condition(worst?.level ?? 0)
+  const tones = tint(look, useTheme().palette.mode)
   const what = worst?.cause ? CAUSE_NAMES[worst.cause].toLowerCase() : 'bad weather'
   const label = worst
     ? `${look.label}: ${what} for ${formatMiles(worst.miles)}` +
@@ -86,8 +96,8 @@ function Summary({ route, layer, top }: { route: PlannedRoute; layer: MapLayer; 
         top,
         zIndex: 1000, // above Leaflet's panes
         maxWidth: 'calc(100% - 24px)',
-        bgcolor: look.container,
-        color: look.onContainer,
+        bgcolor: tones.background,
+        color: tones.text,
         border: 1,
         borderColor: look.colour,
         fontWeight: 500,
@@ -100,6 +110,9 @@ function Summary({ route, layer, top }: { route: PlannedRoute; layer: MapLayer; 
 
 function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: RouteMapProps) {
   const theme = useTheme()
+  const dark = theme.palette.mode === 'dark'
+  const tiles = dark ? DARK_TILES : TILES
+  const labels = dark ? DARK_LABELS : LABELS
   const [layer, setLayer] = useState<MapLayer>('overall')
   const bounds = boundsOf(routes)
   const selected = routes.find((route) => route.id === selectedId)
@@ -113,7 +126,8 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
         position: 'relative',
         height: '100%',
         overflow: 'hidden',
-        bgcolor: '#e8e8e8', // the tiles' own grey, so loading doesn't flash white
+        // The tiles' own grey, so loading doesn't flash white (or black).
+        bgcolor: dark ? '#262626' : '#e8e8e8',
         // Leaflet's own controls and popups, nudged towards Material 3.
         '& .leaflet-container': { bgcolor: 'transparent', fontFamily: 'inherit' },
         '& .leaflet-bar': {
@@ -123,7 +137,12 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
           overflow: 'hidden',
         },
         '& .leaflet-bar a': { color: 'm3.onSurface', bgcolor: 'm3.surfaceContainer' },
-        '& .leaflet-control-attribution': { fontSize: 10 },
+        '& .leaflet-control-attribution': {
+          fontSize: 10,
+          bgcolor: 'm3.surfaceContainer',
+          color: 'm3.onSurfaceVariant',
+          '& a': { color: 'primary.main' },
+        },
         '& .leaflet-bottom': { bottom: inset, transition: 'bottom 250ms ease' },
         '& .leaflet-popup-content-wrapper, & .leaflet-popup-tip': {
           bgcolor: 'm3.surfaceContainerHigh',
@@ -143,10 +162,16 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
         style={{ height: '100%', width: '100%' }}
       >
         {compact ? null : <ZoomControl position="bottomright" />}
-        <TileLayer url={TILES.url} attribution={TILES.attribution} maxZoom={TILES.maxZoom} />
+        {/* Keyed by mode, so switching themes swaps the tiles rather than mixing them. */}
+        <TileLayer
+          key={`base-${tiles.url}`}
+          url={tiles.url}
+          attribution={tiles.attribution}
+          maxZoom={tiles.maxZoom}
+        />
         {/* Place names above the routes but below the markers, and never in a click's way. */}
         <Pane name="labels" style={{ zIndex: 450, pointerEvents: 'none' }}>
-          <TileLayer url={LABELS.url} maxZoom={LABELS.maxZoom} />
+          <TileLayer key={`labels-${labels.url}`} url={labels.url} maxZoom={labels.maxZoom} />
         </Pane>
         {selected ? <HeatBand route={selected} layer={layer} /> : null}
         {drawOrder(routes, selectedId).map((route) => {

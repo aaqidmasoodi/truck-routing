@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Polyline } from 'react-leaflet'
+import { useTheme } from '@mui/material/styles'
 import type { PlannedRoute } from '../api/client'
 import { condition, levelOn, type MapLayer } from '../conditions'
 import { stretches } from '../heatmap'
@@ -15,6 +16,7 @@ interface HeatBandProps {
  * (the heatmap) and a crisp line on top, each stretch in its checkpoint's colour.
  */
 function HeatBand({ route, layer }: HeatBandProps) {
+  const casing = useTheme().palette.mode === 'dark' ? '#1b1b1f' : '#ffffff'
   // Cutting the road up is the costly part, and it only depends on the shape and the
   // checkpoint miles, which stay put while the departure slider moves.
   const pieces = useMemo(
@@ -39,7 +41,8 @@ function HeatBand({ route, layer }: HeatBandProps) {
       <Polyline
         positions={route.points as LatLng[]}
         interactive={false}
-        pathOptions={{ color: '#ffffff', weight: 9, opacity: 1 }}
+        // A casing in the map's own background, so the coloured line stands out on it.
+        pathOptions={{ color: casing, weight: 9, opacity: 1 }}
       />
       {pieces.map((piece, i) => (
         <Polyline

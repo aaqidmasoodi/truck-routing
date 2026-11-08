@@ -20,6 +20,16 @@ export const LABELS = {
   maxZoom: 16,
 }
 
+/** The same canvas in dark grey, for dark mode. */
+export const DARK_TILES = {
+  ...TILES,
+  url: `${ESRI}/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+}
+export const DARK_LABELS = {
+  ...LABELS,
+  url: `${ESRI}/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+}
+
 /** South-west and north-east corners that take in every route. */
 export function boundsOf(routes: PlannedRoute[]): [LatLng, LatLng] | null {
   const points = routes.flatMap((route) => route.points)
