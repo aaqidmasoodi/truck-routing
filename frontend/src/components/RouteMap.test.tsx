@@ -149,3 +149,16 @@ describe('RouteMap before a plan', () => {
     expect(screen.queryByRole('group', { name: 'Colour the route by' })).not.toBeInTheDocument()
   })
 })
+
+describe('RouteMap key on a phone', () => {
+  it('starts as a small button so it does not hide the route', async () => {
+    renderWithTheme(<RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} compact />)
+
+    expect(screen.queryByRole('list', { name: 'Driving conditions key' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show map key' }))
+    expect(screen.getByRole('list', { name: 'Driving conditions key' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hide map key' }))
+    expect(screen.getByRole('button', { name: 'Show map key' })).toBeInTheDocument()
+  })
+})

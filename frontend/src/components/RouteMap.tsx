@@ -209,7 +209,7 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
       ) : null}
       {selected ? <Summary route={selected} layer={layer} top={compact ? 60 : 12} /> : null}
       {routes.length > 0 ? (
-        <RiskLegend layer={layer} bottom={inset + 24} />
+        <RiskLegend layer={layer} bottom={inset + 24} compact={compact} />
       ) : (
         <Chip
           label="Plan a trip to see the routes here"
