@@ -229,3 +229,14 @@ def test_lookups_are_logged(caplog: pytest.LogCaptureFixture) -> None:
         fetch_forecasts([(53.35, -6.26)] * 3, client=fake_api(echo_locations))
 
     assert "forecasts for 3 points: 1 places, 0 cached, 1 to fetch" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("minutes", "wind"),
+    [(-30, 10), (0, 10), (29, 10), (31, 20), (60, 20), (119, 30), (120, 30)],
+)
+def test_wind_always_uses_the_closest_hour(minutes: int, wind: float) -> None:
+    conditions = FORECAST.at(at(START + minutes * 60))
+
+    assert conditions is not None
+    assert conditions.wind_mph == wind
