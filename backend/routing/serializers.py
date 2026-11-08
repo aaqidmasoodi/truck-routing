@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import Any
 
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .checkpoints import SPACINGS_MILES
@@ -9,6 +10,14 @@ from .risk import RiskLevel
 
 # Weather forecasts are only useful for about two days ahead.
 FORECAST_HOURS = 48
+
+
+class HealthSerializer(serializers.Serializer[Any]):
+    status = serializers.CharField()
+
+
+class ErrorSerializer(serializers.Serializer[Any]):
+    detail = serializers.CharField()
 
 
 class CheckpointRiskInput(serializers.Serializer[Any]):
@@ -68,6 +77,17 @@ class WeatherSerializer(serializers.Serializer[Any]):
 # Trip plan responses
 
 
+RISK_LEVEL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "value": {"type": "integer", "enum": [level.value for level in RiskLevel]},
+        "label": {"type": "string"},
+    },
+    "required": ["value", "label"],
+}
+
+
+@extend_schema_field(RISK_LEVEL_SCHEMA)
 class RiskLevelField(serializers.Field[RiskLevel, Any, dict[str, Any], Any]):
     """A risk level as {"value": 3, "label": "Severe"}, so the UI needn't know the names."""
 

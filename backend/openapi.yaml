@@ -1,0 +1,484 @@
+openapi: 3.0.3
+info:
+  title: Weather-Aware Truck Routing API
+  version: 1.0.0
+  description: Plan truck trips that avoid dangerous weather along the way.
+paths:
+  /api/checkpoint-risk/:
+    post:
+      operationId: checkpoint_risk_create
+      tags:
+      - checkpoint-risk
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckpointRiskInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CheckpointRiskInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CheckpointRiskInput'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Risk'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Invalid input, by field
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /api/places/:
+    get:
+      operationId: places_list
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+          maxLength: 100
+          minLength: 2
+        required: true
+      tags:
+      - places
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Invalid input, by field
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: ''
+  /api/plan/:
+    post:
+      operationId: plan_create
+      description: Route options for a truck trip, ranked safest first with the weather
+        on the way.
+      tags:
+      - plan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripPlan'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: Invalid input, by field
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: No road between the places
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Routing service unavailable
+  /api/risk-levels/:
+    get:
+      operationId: risk_levels_retrieve
+      tags:
+      - risk-levels
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    value:
+                      type: integer
+                      enum:
+                      - 0
+                      - 1
+                      - 2
+                      - 3
+                      - 4
+                    label:
+                      type: string
+                  required:
+                  - value
+                  - label
+          description: ''
+components:
+  schemas:
+    CheckpointRiskInput:
+      type: object
+      properties:
+        wind_mph:
+          type: number
+          format: double
+          maximum: 250
+          minimum: 0
+        rain_in_per_hr:
+          type: number
+          format: double
+          maximum: 20
+          minimum: 0
+        snow_in_per_hr:
+          type: number
+          format: double
+          maximum: 20
+          minimum: 0
+        weight_lb:
+          type: number
+          format: double
+          maximum: 200000
+          minimum: 0
+      required:
+      - rain_in_per_hr
+      - snow_in_per_hr
+      - weight_lb
+      - wind_mph
+    Coordinates:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+          maximum: 90
+          minimum: -90
+        longitude:
+          type: number
+          format: double
+          maximum: 180
+          minimum: -180
+      required:
+      - latitude
+      - longitude
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+      required:
+      - detail
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    Place:
+      type: object
+      properties:
+        name:
+          type: string
+        region:
+          type: string
+        country:
+          type: string
+        display_name:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+      required:
+      - country
+      - display_name
+      - latitude
+      - longitude
+      - name
+      - region
+    PlanRequest:
+      type: object
+      properties:
+        origin:
+          $ref: '#/components/schemas/Coordinates'
+        destination:
+          $ref: '#/components/schemas/Coordinates'
+        weight_lb:
+          type: number
+          format: double
+          maximum: 200000
+          minimum: 1
+        spacing_miles:
+          allOf:
+          - $ref: '#/components/schemas/SpacingMilesEnum'
+          default: 25
+        departure:
+          type: string
+          format: date-time
+      required:
+      - destination
+      - origin
+      - weight_lb
+    PlannedCheckpoint:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        mile:
+          type: number
+          format: double
+        segment_miles:
+          type: number
+          format: double
+        eta:
+          type: string
+          format: date-time
+        weather:
+          allOf:
+          - $ref: '#/components/schemas/Weather'
+          nullable: true
+        risk:
+          allOf:
+          - $ref: '#/components/schemas/Risk'
+          nullable: true
+      required:
+      - eta
+      - latitude
+      - longitude
+      - mile
+      - risk
+      - segment_miles
+      - weather
+    PlannedRoute:
+      type: object
+      properties:
+        id:
+          type: string
+        distance_miles:
+          type: number
+          format: double
+        duration_minutes:
+          type: number
+          format: double
+        points:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+              format: double
+        score:
+          $ref: '#/components/schemas/RouteScore'
+        unknown_weather_miles:
+          type: number
+          format: double
+        checkpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlannedCheckpoint'
+      required:
+      - checkpoints
+      - distance_miles
+      - duration_minutes
+      - id
+      - points
+      - score
+      - unknown_weather_miles
+    Risk:
+      type: object
+      properties:
+        level:
+          type: object
+          properties:
+            value:
+              type: integer
+              enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
+            label:
+              type: string
+          required:
+          - value
+          - label
+        wind:
+          type: object
+          properties:
+            value:
+              type: integer
+              enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
+            label:
+              type: string
+          required:
+          - value
+          - label
+        rain:
+          type: object
+          properties:
+            value:
+              type: integer
+              enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
+            label:
+              type: string
+          required:
+          - value
+          - label
+        snow:
+          type: object
+          properties:
+            value:
+              type: integer
+              enum:
+              - 0
+              - 1
+              - 2
+              - 3
+              - 4
+            label:
+              type: string
+          required:
+          - value
+          - label
+        causes:
+          type: array
+          items:
+            type: string
+      required:
+      - causes
+      - level
+      - rain
+      - snow
+      - wind
+    RouteScore:
+      type: object
+      properties:
+        no_travel_miles:
+          type: number
+          format: double
+        severe_miles:
+          type: number
+          format: double
+        high_miles:
+          type: number
+          format: double
+        average_risk:
+          type: number
+          format: double
+      required:
+      - average_risk
+      - high_miles
+      - no_travel_miles
+      - severe_miles
+    SpacingMilesEnum:
+      enum:
+      - 10
+      - 25
+      - 50
+      type: integer
+      description: |-
+        * `10` - 10
+        * `25` - 25
+        * `50` - 50
+    TripPlan:
+      type: object
+      properties:
+        recommended_route_id:
+          type: string
+        reason:
+          type: string
+        safe_to_travel:
+          type: boolean
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlannedRoute'
+      required:
+      - reason
+      - recommended_route_id
+      - routes
+      - safe_to_travel
+    Weather:
+      type: object
+      properties:
+        wind_mph:
+          type: number
+          format: double
+        rain_in_per_hr:
+          type: number
+          format: double
+        snow_in_per_hr:
+          type: number
+          format: double
+      required:
+      - rain_in_per_hr
+      - snow_in_per_hr
+      - wind_mph
