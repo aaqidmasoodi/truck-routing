@@ -61,6 +61,30 @@ export function searchPlaces(query: string, signal?: AbortSignal): Promise<Place
   return request(`/api/places/?${params}`, signal ? { signal } : {})
 }
 
+// The free routing and weather services sometimes drop a request and answer the next.
+const RETRY_STATUSES = new Set([502, 503, 504])
+
+function worthRetrying(error: unknown): boolean {
+  if (error instanceof ApiError) return RETRY_STATUSES.has(error.status)
+  return error instanceof TypeError // fetch's way of saying the network failed
+}
+
+/** Try `attempt` up to `times` times, waiting a little longer after each failure. */
+export async function retrying<T>(
+  attempt: () => Promise<T>,
+  { times = 3, waitMs = 800 }: { times?: number; waitMs?: number } = {},
+): Promise<T> {
+  for (let tries = 1; ; tries++) {
+    try {
+      return await attempt()
+    } catch (error) {
+      if (tries >= times || !worthRetrying(error)) throw error
+      debug('api', `attempt ${tries} failed, trying again`, error)
+      await new Promise((resolve) => setTimeout(resolve, waitMs * tries))
+    }
+  }
+}
+
 export function planTrip(trip: Trip): Promise<TripPlan> {
   const body: Schemas['PlanRequest'] = {
     origin: { latitude: trip.origin.latitude, longitude: trip.origin.longitude },
@@ -69,9 +93,11 @@ export function planTrip(trip: Trip): Promise<TripPlan> {
     spacing_miles: trip.spacingMiles,
     ...(trip.departure ? { departure: trip.departure } : {}),
   }
-  return request('/api/plan/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  return retrying(() =>
+    request<TripPlan>('/api/plan/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  )
 }
