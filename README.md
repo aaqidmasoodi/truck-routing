@@ -32,6 +32,15 @@ curl -X POST localhost:8000/api/checkpoint-risk/ \
 
 This returns the level for each condition, the overall level, and which conditions caused it.
 
+## The trip form
+
+Start, destination, truck weight (required, up to 200,000 lb), when to leave and how often
+to check the weather. Leaving the time blank means now; otherwise it has to be within the
+next 48 hours, since that's as far as the forecast goes. The form checks everything before
+asking the server (`frontend/src/tripDraft.ts`): a weight that isn't a number, the same
+place twice, or a time that's passed or too far ahead all get a message under the field.
+Enter submits, and the arrows swap start and destination.
+
 ## Finding places
 
 Start and destination are looked up with the free
