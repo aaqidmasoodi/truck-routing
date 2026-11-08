@@ -2,7 +2,7 @@
 
 Helps a truck driver pick the safest route based on weather, load weight and travel time.
 
-Pick a start, a destination and the truck's weight. The app finds up to three routes,
+Pick a start, a destination and the truck's weight. The app finds three route options,
 checks the forecast at evenly spaced checkpoints for the time the truck gets to each one,
 scores every checkpoint for wind, rain and snow, and recommends the safest route with a
 one-line reason. A slider shows how the picture changes if you leave up to 48 hours later,
@@ -59,17 +59,36 @@ Location data is based on [GeoNames](https://www.geonames.org).
 
 ## Finding routes
 
-Up to three driving routes come from [OSRM](https://project-osrm.org), each with its
-distance, drive time and the points along the road. OSRM sends the shape as an encoded
-polyline, which `backend/routing/polyline.py` decodes. Results are cached for an hour. It asks the OpenStreetMap-hosted OSRM server first
-and falls back to the OSRM project's demo server, since both are free and best effort.
+The brief asks for three route options. They come from [OSRM](https://project-osrm.org),
+each with its distance, drive time and the points along the road. OSRM sends the shape as
+an encoded polyline, which `backend/routing/polyline.py` decodes. Results are cached for an
+hour. It asks the OpenStreetMap-hosted OSRM server first and falls back to the OSRM
+project's demo server, since both are free and best effort.
+
+OSRM's own alternatives usually stop at one or two, so the rest are made with detours
+(`backend/routing/clients/routing.py`). The truck is sent through a point off to one side
+of the trip's midpoint, 15% of the trip's length away, then the other side, then 30% out.
+A detour only counts as a new option if:
+
+- it takes at most 1.6 times as long as the fastest route,
+- at least a fifth of its road isn't shared with a route already found, and
+- it doesn't drive out to the detour point and back on the same road. When the detour point
+  lands beside a minor road, that short side trip is cut off first, with its miles and
+  minutes.
+
+It stops as soon as there are three. Routes are numbered fastest first.
+
+Checked against the live servers, 9 of 14 test trips across the US, Canada and Germany get
+three routes. The rest are hemmed in by the coast, mountains or a lake, where every other
+way is far slower, and get one or two.
 
 Two things to know:
 
 - The public OSRM server only has a car profile, so it doesn't know about truck
   restrictions such as low bridges or weight limits. Set `ROUTING_URLS` (comma separated)
   to an OSRM server with a truck profile to change that.
-- OSRM only returns alternatives it thinks are reasonable, so some trips get fewer than three.
+- A trip with only one sensible road, Salt Lake City to Boise for example, still shows one
+  route rather than an unrealistic detour.
 
 Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
 
@@ -208,7 +227,8 @@ The top route also gets a short reason, such as "12 fewer miles of Severe weathe
 - Forecasts go about four days ahead. Miles the truck reaches after that have no
   forecast, count as Low risk, and are flagged in the results.
 - Forecasts are hourly, so each checkpoint uses the hour nearest its arrival time.
-- The free OSRM servers sometimes return fewer than three routes, or only one.
+- Where geography leaves no third sensible road, a trip gets fewer than three routes (see
+  [Finding routes](#finding-routes)).
 - Everything runs on free services with no API keys, so a slow or failed lookup is retried
   a few times before the app shows an error.
 
@@ -298,6 +318,20 @@ are. The generator runs with its own copy of TypeScript 5, since TypeScript 7 do
 the compiler API it needs.
 
 ## Checks
+
+The backend has about 6,000 tests. Most are in
+`backend/routing/tests/test_brief_conformance.py`, which writes the brief's rules out again
+as a reference and checks the app against it:
+
+- every wind speed from 0 to 100 mph in 0.1 mph steps, rain from 0 to 2 in/hr and snow from
+  0 to 5 in/hr in fine steps, and every named band edge in the tables
+- the load rules over a grid of wind speeds and weights, including 30,000 and 40,000 lb
+  exactly and one pound over
+- risk never going down as wind, rain, snow or weight goes up, and each checkpoint taking
+  its worst condition
+- the ranking order on 2,000 random sets of routes, plus one case per ranking step
+- checkpoints every 10, 25 and 50 miles on routes of many lengths, with arrival times that
+  follow the truck
 
 Backend:
 
