@@ -96,6 +96,12 @@ function TripPlanner() {
   const [lookup, setLookup] = useState<Lookup>({ state: 'idle' })
   const [page, setPage] = useState<Page>('form')
   const [tripName, setTripName] = useState('')
+  // The two ends' names for the map's markers, kept stable so the memoised map can skip
+  // redraws.
+  const places = useMemo(() => {
+    const [start = 'start', end = 'destination'] = tripName.split(' → ')
+    return { start, end }
+  }, [tripName])
   // A trip opened from a shared link, planned as soon as the page loads.
   const [linked] = useState(() => draftFromSearch(window.location.search))
   const [copied, setCopied] = useState(false)
@@ -221,6 +227,7 @@ function TripPlanner() {
         <Suspense fallback={<Skeleton variant="rectangular" sx={{ height: '100%' }} />}>
           <RouteMap
             routes={plan?.routes ?? NO_ROUTES}
+            places={places}
             selectedId={selectedId}
             onSelect={setPicked}
             inset={wide ? 0 : sheetHeight}

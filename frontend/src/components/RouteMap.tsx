@@ -1,8 +1,8 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import {
-  CircleMarker,
   MapContainer,
+  Marker,
   Pane,
   Polyline,
   TileLayer,
@@ -30,6 +30,7 @@ import {
   TILES,
   type LatLng,
 } from '../map'
+import { endIcon, startIcon } from '../markerIcons'
 import { routeName } from '../routes'
 import HeatBand from './HeatBand'
 import RiskLegend from './RiskLegend'
@@ -42,8 +43,17 @@ const SETTLE_MS = 300
 // The fewest pixels of map height the routes are squeezed into.
 const MIN_VISIBLE = 120
 
+/** The names of the trip's two ends, for the start and destination markers. */
+export interface TripEnds {
+  start: string
+  end: string
+}
+
+const NO_NAMES: TripEnds = { start: 'start', end: 'destination' }
+
 interface RouteMapProps {
   routes: PlannedRoute[]
+  places?: TripEnds
   selectedId: string
   onSelect: (routeId: string) => void
   /** Pixels at the bottom covered by something else, like the planner sheet on a phone. */
@@ -126,7 +136,14 @@ function Summary({ route, layer, top }: { route: PlannedRoute; layer: MapLayer; 
   )
 }
 
-function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: RouteMapProps) {
+function RouteMap({
+  routes,
+  places = NO_NAMES,
+  selectedId,
+  onSelect,
+  inset = 0,
+  compact = false,
+}: RouteMapProps) {
   const theme = useTheme()
   const dark = theme.palette.mode === 'dark'
   // The credit line shows while planning; once routes are showing it's in the way, so the
@@ -219,22 +236,28 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
           )
         })}
         {selected ? <TroubleMarkers checkpoints={selected.checkpoints} layer={layer} /> : null}
-        {/* Rings around the first and last checkpoints; clicks go through to the dots. */}
+        {/* The start and destination, marked like the From and To fields, above the routes. */}
         {start ? (
-          <CircleMarker
-            center={start as LatLng}
-            radius={12}
-            interactive={false}
-            pathOptions={{ color: theme.palette.primary.main, weight: 3, fill: false }}
-          />
+          <Marker
+            position={start as LatLng}
+            icon={startIcon(theme.palette.primary.main)}
+            title={`Start: ${places.start}`}
+            zIndexOffset={1000}
+            keyboard={false}
+          >
+            <Tooltip direction="right">Start: {places.start}</Tooltip>
+          </Marker>
         ) : null}
         {end ? (
-          <CircleMarker
-            center={end as LatLng}
-            radius={12}
-            interactive={false}
-            pathOptions={{ color: theme.palette.m3.tertiary, weight: 3, fill: false }}
-          />
+          <Marker
+            position={end as LatLng}
+            icon={endIcon(theme.palette.m3.tertiary)}
+            title={`Destination: ${places.end}`}
+            zIndexOffset={1000}
+            keyboard={false}
+          >
+            <Tooltip direction="right">Destination: {places.end}</Tooltip>
+          </Marker>
         ) : null}
         {/* On a phone, keep the routes clear of the layer buttons above the sheet too. */}
         {bounds ? <FitToRoutes bounds={bounds} inset={compact ? inset + 48 : inset} /> : null}

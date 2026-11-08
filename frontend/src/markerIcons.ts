@@ -49,3 +49,48 @@ export function troubleIcon(level: number, cause: Cause | null): DivIcon {
   cache.set(key, icon)
   return icon
 }
+
+const PIN =
+  'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7m0 9.5c-1.38 0-2.5' +
+  '-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5'
+
+/** The start of the trip: a ringed dot, like the From field's icon. */
+export function startIcon(colour: string): DivIcon {
+  const key = `start:${colour}`
+  const cached = cache.get(key)
+  if (cached) return cached
+  const size = 22
+  const icon = divIcon({
+    className: 'trip-end-marker',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    tooltipAnchor: [size / 2, 0],
+    html:
+      `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#fff;` +
+      `border:5px solid ${colour};box-shadow:0 1px 4px rgba(0,0,0,.45);box-sizing:border-box">` +
+      `</div>`,
+  })
+  cache.set(key, icon)
+  return icon
+}
+
+/** The destination: a map pin, like the To field's icon, with its tip on the spot. */
+export function endIcon(colour: string): DivIcon {
+  const key = `end:${colour}`
+  const cached = cache.get(key)
+  if (cached) return cached
+  const size = 40
+  const icon = divIcon({
+    className: 'trip-end-marker',
+    iconSize: [size, size],
+    // The pin's tip sits at 22/24 of the way down its box.
+    iconAnchor: [size / 2, (size * 22) / 24],
+    tooltipAnchor: [size / 2 - 6, -size / 2],
+    html:
+      `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" ` +
+      `style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))">` +
+      `<path d="${PIN}" fill="${colour}" stroke="#fff" stroke-width="1"/></svg>`,
+  })
+  cache.set(key, icon)
+  return icon
+}
