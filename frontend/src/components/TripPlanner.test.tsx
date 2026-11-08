@@ -299,3 +299,66 @@ describe('TripPlanner', () => {
     })
   })
 })
+
+describe('recent searches', () => {
+  async function planOnce() {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    const first = renderWithTheme(<TripPlanner />)
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+    await screen.findByText('1 route found, safest first')
+    first.unmount()
+  }
+
+  it('offers a recent trip that fills in both ends', async () => {
+    await planOnce()
+    renderWithTheme(<TripPlanner />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Denver → Chicago' }))
+
+    expect(screen.getByLabelText('From')).toHaveValue('Denver, Colorado, United States')
+    expect(screen.getByLabelText('To')).toHaveValue('Chicago, Illinois, United States')
+  })
+
+  it('lists recent places before anything is typed', async () => {
+    await planOnce()
+    renderWithTheme(<TripPlanner />)
+
+    await userEvent.click(screen.getByLabelText('To'))
+
+    expect(screen.getByText('Recent')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('option', { name: 'Chicago, Illinois, United States' }))
+    expect(screen.getByLabelText('To')).toHaveValue('Chicago, Illinois, United States')
+  })
+
+  it('shows nothing extra the first time', () => {
+    renderWithTheme(<TripPlanner />)
+
+    expect(screen.queryByLabelText('Last trip')).not.toBeInTheDocument()
+  })
+})
+
+describe('last trip', () => {
+  it('shows only the most recent trip below the fields', () => {
+    const place = (name: string, latitude: number) => ({
+      name,
+      region: '',
+      country: '',
+      display_name: name,
+      latitude,
+      longitude: 0,
+    })
+    localStorage.setItem(
+      'truck-routing:recent-trips',
+      JSON.stringify([
+        { origin: place('Austin', 1), destination: place('Dallas', 2) },
+        { origin: place('Denver', 3), destination: place('Chicago', 4) },
+      ]),
+    )
+
+    renderWithTheme(<TripPlanner />)
+
+    expect(screen.getByRole('button', { name: 'Austin → Dallas' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Denver → Chicago' })).not.toBeInTheDocument()
+  })
+})
