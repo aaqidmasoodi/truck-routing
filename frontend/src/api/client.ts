@@ -1,87 +1,21 @@
 import { debug } from '../debug'
+import type { components } from './schema'
 
 const API_URL = import.meta.env.VITE_API_URL ?? ''
 
-export interface Place {
-  name: string
-  region: string
-  country: string
-  display_name: string
-  latitude: number
-  longitude: number
-}
+// Generated from the backend's OpenAPI schema; run `npm run gen:api` after API changes.
+type Schemas = components['schemas']
 
-export interface Coordinates {
-  latitude: number
-  longitude: number
-}
-
-export interface Weather {
-  wind_mph: number
-  rain_in_per_hr: number
-  snow_in_per_hr: number
-}
-
-export interface Checkpoint {
-  latitude: number
-  longitude: number
-  mile: number
-  segment_miles: number
-  eta: string
-  /** Forecast for when the truck gets there; null if it's past the forecast or unavailable. */
-  weather: Weather | null
-}
-
-interface RouteOption {
-  id: string
-  distance_miles: number
-  duration_minutes: number
-  points: [number, number][]
-}
-
-export type Spacing = 10 | 25 | 50
-
-export interface RiskLevel {
-  /** 0 Low, 1 Moderate, 2 High, 3 Severe, 4 No Travel */
-  value: 0 | 1 | 2 | 3 | 4
-  label: string
-}
-
-export interface CheckpointRisk {
-  level: RiskLevel
-  wind: RiskLevel
-  rain: RiskLevel
-  snow: RiskLevel
-  /** Which conditions set the overall level, e.g. ["wind"]. Empty when it's Low. */
-  causes: string[]
-}
-
-export interface PlannedCheckpoint extends Checkpoint {
-  risk: CheckpointRisk | null
-}
-
-export interface RouteScore {
-  no_travel_miles: number
-  severe_miles: number
-  high_miles: number
-  average_risk: number
-}
-
-export interface PlannedRoute extends RouteOption {
-  score: RouteScore
-  unknown_weather_miles: number
-  checkpoints: PlannedCheckpoint[]
-}
-
-export interface TripPlan {
-  recommended_route_id: string
-  /** Why the recommended route beats the next best, in plain words. */
-  reason: string
-  /** False when even the best route runs into No Travel weather. */
-  safe_to_travel: boolean
-  /** Safest first. */
-  routes: PlannedRoute[]
-}
+export type Place = Schemas['Place']
+export type Coordinates = Schemas['Coordinates']
+export type Weather = Schemas['Weather']
+export type CheckpointRisk = Schemas['Risk']
+export type RiskLevel = CheckpointRisk['level']
+export type PlannedCheckpoint = Schemas['PlannedCheckpoint']
+export type RouteScore = Schemas['RouteScore']
+export type PlannedRoute = Schemas['PlannedRoute']
+export type TripPlan = Schemas['TripPlan']
+export type Spacing = Schemas['SpacingMilesEnum']
 
 export interface Trip {
   origin: Coordinates
@@ -111,7 +45,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T
 }
 
-export function getHealth(): Promise<{ status: string }> {
+export function getHealth(): Promise<Schemas['Health']> {
   return request('/api/health/')
 }
 
@@ -121,14 +55,15 @@ export function searchPlaces(query: string, signal?: AbortSignal): Promise<Place
 }
 
 export function planTrip(trip: Trip): Promise<TripPlan> {
+  const body: Schemas['PlanRequest'] = {
+    origin: { latitude: trip.origin.latitude, longitude: trip.origin.longitude },
+    destination: { latitude: trip.destination.latitude, longitude: trip.destination.longitude },
+    weight_lb: trip.weightLb,
+    spacing_miles: trip.spacingMiles,
+  }
   return request('/api/plan/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      origin: { latitude: trip.origin.latitude, longitude: trip.origin.longitude },
-      destination: { latitude: trip.destination.latitude, longitude: trip.destination.longitude },
-      weight_lb: trip.weightLb,
-      spacing_miles: trip.spacingMiles,
-    }),
+    body: JSON.stringify(body),
   })
 }
