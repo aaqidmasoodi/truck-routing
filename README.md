@@ -218,6 +218,43 @@ Open http://localhost:5173. Requests to `/api` are proxied to the backend on por
 - Frontend: debug logs show in the browser console during `npm run dev`. For a production
   build, set `VITE_DEBUG=true` to keep them.
 
+### Running the production build
+
+The Dockerfile builds the frontend and serves it with the API from gunicorn, the same way
+it runs on Render:
+
+```bash
+docker build -t truck-routing .
+docker run -p 8000:8000 -e DJANGO_SECRET_KEY=change-me truck-routing
+```
+
+Then open http://localhost:8000.
+
+## Deploying to Render
+
+The app runs as one free Render web service. Django serves the built frontend with
+WhiteNoise, so the page and the API share an origin and need no CORS setup.
+
+1. Push the repo to GitHub.
+2. In Render, choose **New > Blueprint** and pick the repo. `render.yaml` sets up a free
+   Docker web service with a generated `DJANGO_SECRET_KEY` and a health check on
+   `/api/health/`.
+3. Wait for the first deploy, then open the `onrender.com` URL.
+
+Render's hostname is added to `ALLOWED_HOSTS` automatically. Free services sleep after
+15 minutes without traffic, so the first request after that takes up to a minute while it
+starts again.
+
+Settings read from the environment:
+
+| Variable                 | Default                  | Meaning                                   |
+| ------------------------ | ------------------------ | ----------------------------------------- |
+| `DJANGO_DEBUG`           | `1` (`0` in the image)   | Debug mode; off needs a secret key        |
+| `DJANGO_SECRET_KEY`      | a dev key when debugging | Django's secret key                       |
+| `DJANGO_ALLOWED_HOSTS`   | `localhost,127.0.0.1`    | Hostnames Django will answer to           |
+| `CORS_ALLOWED_ORIGINS`   | `http://localhost:5173`  | Only needed if the frontend is elsewhere  |
+| `LOG_LEVEL`              | `DEBUG` or `INFO`        | How much the `routing` logger prints      |
+
 ## API docs and types
 
 With the backend running, the interactive docs are at http://localhost:8000/api/docs/ and
