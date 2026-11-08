@@ -58,8 +58,13 @@ class Forecast:
         if not self.times or not self.times[0] - HOUR <= when <= self.times[-1]:
             return None
 
-        precip = min(bisect_right(self.times, when), len(self.times) - 1)
-        nearest = min(range(len(self.times)), key=lambda i: abs(self.times[i] - when))
+        after = bisect_right(self.times, when)
+        precip = min(after, len(self.times) - 1)
+        # The nearest hour is either the last one before `when` or the first after it.
+        nearest = min(
+            (i for i in (after - 1, after) if 0 <= i < len(self.times)),
+            key=lambda i: abs(self.times[i] - when),
+        )
         return Conditions(
             wind_mph=self.wind_mph[nearest],
             rain_in_per_hr=self.rain_in_per_hr[precip],

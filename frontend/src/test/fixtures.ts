@@ -39,6 +39,7 @@ export function tripPlan(routes: PlannedRoute[], overrides: Partial<TripPlan> = 
     reason: 'The only route found',
     safe_to_travel: true,
     routes,
+    timeline: [],
     ...overrides,
   }
 }

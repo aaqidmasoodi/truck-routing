@@ -448,6 +448,54 @@ components:
         * `10` - 10
         * `25` - 25
         * `50` - 50
+    TimelineEntry:
+      type: object
+      properties:
+        recommended_route_id:
+          type: string
+        reason:
+          type: string
+        safe_to_travel:
+          type: boolean
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineRoute'
+          description: Safest first at this hour
+      required:
+      - reason
+      - recommended_route_id
+      - routes
+      - safe_to_travel
+    TimelineRoute:
+      type: object
+      description: One route at one departure hour, with the checkpoints packed into
+        short rows.
+      properties:
+        id:
+          type: string
+        score:
+          $ref: '#/components/schemas/RouteScore'
+        unknown_weather_miles:
+          type: number
+          format: double
+        conditions:
+          type: array
+          items:
+            type: array
+            nullable: true
+            description: '[risk, wind risk, rain risk, snow risk, wind mph, rain in/hr,
+              snow in/hr], or null when there''s no forecast for that time'
+            items:
+              type: number
+            minItems: 7
+            maxItems: 7
+          readOnly: true
+      required:
+      - conditions
+      - id
+      - score
+      - unknown_weather_miles
     TripPlan:
       type: object
       properties:
@@ -461,11 +509,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PlannedRoute'
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineEntry'
+          description: The same trip leaving 0, 1, 2 ... 48 hours later; the index
+            is the hours.
       required:
       - reason
       - recommended_route_id
       - routes
       - safe_to_travel
+      - timeline
     Weather:
       type: object
       properties:

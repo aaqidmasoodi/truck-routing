@@ -197,11 +197,28 @@ export interface components {
          * @enum {integer}
          */
         SpacingMilesEnum: 10 | 25 | 50;
+        TimelineEntry: {
+            recommended_route_id: string;
+            reason: string;
+            safe_to_travel: boolean;
+            /** @description Safest first at this hour */
+            routes: components["schemas"]["TimelineRoute"][];
+        };
+        /** @description One route at one departure hour, with the checkpoints packed into short rows. */
+        TimelineRoute: {
+            id: string;
+            score: components["schemas"]["RouteScore"];
+            /** Format: double */
+            unknown_weather_miles: number;
+            readonly conditions: (number[] | null)[];
+        };
         TripPlan: {
             recommended_route_id: string;
             reason: string;
             safe_to_travel: boolean;
             routes: components["schemas"]["PlannedRoute"][];
+            /** @description The same trip leaving 0, 1, 2 ... 48 hours later; the index is the hours. */
+            timeline: components["schemas"]["TimelineEntry"][];
         };
         Weather: {
             /** Format: double */

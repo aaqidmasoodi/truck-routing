@@ -1,18 +1,22 @@
 """Puts the pieces together: route options, checkpoints, weather and risk."""
 
 import logging
-from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import datetime
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 from .checkpoints import ScheduledCheckpoint, checkpoints_for_route
 from .clients.routing import Route, find_routes
-from .clients.weather import WeatherError, fetch_forecasts
+from .clients.weather import Forecast, WeatherError, fetch_forecasts
 from .polyline import Point
 from .ranking import RouteScore, Segment, rank_routes, score_route, why_ahead
 from .risk import CheckpointRisk, Conditions, RiskLevel, checkpoint_risk
 
 logger = logging.getLogger(__name__)
+
+# How far the departure slider reaches, in whole hours from the planned departure.
+TIMELINE_HOURS = 48
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,10 @@ class TripPlan:
     reason: str  # why routes[0] is recommended
     # False when even the best route runs into No Travel weather.
     safe_to_travel: bool
+
+    # The same trip leaving 0, 1, 2 ... TIMELINE_HOURS hours later, so the UI can show
+    # how waiting changes things without asking the server again.
+    timeline: list["TripPlan"] = field(default_factory=list)
 
     @property
     def recommended(self) -> PlannedRoute:
@@ -91,20 +99,73 @@ def recommend(planned: Sequence[PlannedRoute]) -> TripPlan:
     )
 
 
+def _fetch(checkpoints: Sequence[ScheduledCheckpoint]) -> list[Forecast] | None:
+    """Forecasts for every checkpoint, or None if the forecast service is down."""
+    try:
+        return fetch_forecasts([(c.latitude, c.longitude) for c in checkpoints])
+    except WeatherError:
+        return None
+
+
+def _conditions(
+    checkpoints: Sequence[ScheduledCheckpoint],
+    forecasts: Sequence[Forecast] | None,
+    later: timedelta = timedelta(0),
+) -> list[Conditions | None]:
+    if forecasts is None:
+        return [None] * len(checkpoints)
+    return [
+        forecast.at(checkpoint.eta + later)
+        for checkpoint, forecast in zip(checkpoints, forecasts, strict=True)
+    ]
+
+
 def weather_at(checkpoints: Sequence[ScheduledCheckpoint]) -> list[Conditions | None]:
     """The forecast at each checkpoint's arrival time, in the same order.
 
     If the forecast service is down the routes are still worth showing, so every
     checkpoint just gets unknown weather.
     """
+    return _conditions(checkpoints, _fetch(checkpoints))
+
+
+@contextmanager
+def _quietly() -> Iterator[None]:
+    """The timeline repeats the planning 48 more times; keep the debug log readable."""
+    routing_logger = logging.getLogger("routing")
+    level = routing_logger.level
+    routing_logger.setLevel(max(level, logging.INFO))
     try:
-        forecasts = fetch_forecasts([(c.latitude, c.longitude) for c in checkpoints])
-    except WeatherError:
-        return [None] * len(checkpoints)
-    return [
-        forecast.at(checkpoint.eta)
-        for checkpoint, forecast in zip(checkpoints, forecasts, strict=True)
-    ]
+        yield
+    finally:
+        routing_logger.setLevel(level)
+
+
+def _plan_at(
+    routes: Sequence[Route],
+    per_route: Sequence[Sequence[ScheduledCheckpoint]],
+    forecasts: Sequence[Forecast] | None,
+    weight_lb: float,
+    later: timedelta = timedelta(0),
+) -> TripPlan:
+    planned = []
+    start = 0
+    for route, checkpoints in zip(routes, per_route, strict=True):
+        mine = forecasts[start : start + len(checkpoints)] if forecasts else None
+        start += len(checkpoints)
+        shifted = [
+            ScheduledCheckpoint(
+                latitude=c.latitude,
+                longitude=c.longitude,
+                mile=c.mile,
+                segment_miles=c.segment_miles,
+                eta=c.eta + later,
+            )
+            for c in checkpoints
+        ]
+        weather = _conditions(checkpoints, mine, later)
+        planned.append(plan_route(route, assess(shifted, weather, weight_lb)))
+    return recommend(planned)
 
 
 def plan_trip(
@@ -121,13 +182,15 @@ def plan_trip(
     routes = find_routes(origin, destination)
     per_route = [checkpoints_for_route(route, spacing_miles, departure) for route in routes]
 
-    # One forecast lookup for every checkpoint on every route.
-    weather = iter(weather_at([c for checkpoints in per_route for c in checkpoints]))
-    planned = [
-        plan_route(route, assess(checkpoints, [next(weather) for _ in checkpoints], weight_lb))
-        for route, checkpoints in zip(routes, per_route, strict=True)
-    ]
-    plan = recommend(planned)
+    # One forecast lookup for every checkpoint on every route, reused for every hour.
+    forecasts = _fetch([c for checkpoints in per_route for c in checkpoints])
+    plan = _plan_at(routes, per_route, forecasts, weight_lb)
+    with _quietly():
+        timeline = [
+            _plan_at(routes, per_route, forecasts, weight_lb, timedelta(hours=hours))
+            for hours in range(TIMELINE_HOURS + 1)
+        ]
+
     logger.debug(
         "planned %d routes for %s lb: recommending %s (%s)%s",
         len(plan.routes),
@@ -136,4 +199,9 @@ def plan_trip(
         plan.reason,
         "" if plan.safe_to_travel else ", but every route has No Travel weather",
     )
-    return plan
+    return TripPlan(
+        routes=plan.routes,
+        reason=plan.reason,
+        safe_to_travel=plan.safe_to_travel,
+        timeline=timeline,
+    )
