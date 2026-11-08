@@ -12,6 +12,14 @@ from .risk import RiskLevel
 FORECAST_HOURS = 48
 
 
+class HealthSerializer(serializers.Serializer[Any]):
+    status = serializers.CharField()
+
+
+class ErrorSerializer(serializers.Serializer[Any]):
+    detail = serializers.CharField()
+
+
 class CheckpointRiskInput(serializers.Serializer[Any]):
     wind_mph = serializers.FloatField(min_value=0, max_value=250)
     rain_in_per_hr = serializers.FloatField(min_value=0, max_value=20)
@@ -69,16 +77,17 @@ class WeatherSerializer(serializers.Serializer[Any]):
 # Trip plan responses
 
 
-@extend_schema_field(
-    {
-        "type": "object",
-        "properties": {
-            "value": {"type": "integer", "minimum": 0, "maximum": 4},
-            "label": {"type": "string"},
-        },
-        "required": ["value", "label"],
-    }
-)
+RISK_LEVEL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "value": {"type": "integer", "minimum": 0, "maximum": 4},
+        "label": {"type": "string"},
+    },
+    "required": ["value", "label"],
+}
+
+
+@extend_schema_field(RISK_LEVEL_SCHEMA)
 class RiskLevelField(serializers.Field[RiskLevel, Any, dict[str, Any], Any]):
     """A risk level as {"value": 3, "label": "Severe"}, so the UI needn't know the names."""
 
