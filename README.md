@@ -30,7 +30,27 @@ Open http://localhost:5173. Requests to `/api` are proxied to the backend on por
 
 ## Checks
 
+Backend:
+
 ```bash
-cd backend && ruff check . && ruff format --check . && python manage.py test
-cd frontend && npm run lint && npm run build
+cd backend
+ruff check . && ruff format --check .
+mypy .
+pytest --cov
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm run lint && npm run format:check
+npm run typecheck
+npm test
+```
+
+Both run in CI on every pull request. To run them before each commit:
+
+```bash
+pip install pre-commit
+pre-commit install
 ```
