@@ -16,12 +16,20 @@ export interface Coordinates {
   longitude: number
 }
 
+export interface Weather {
+  wind_mph: number
+  rain_in_per_hr: number
+  snow_in_per_hr: number
+}
+
 export interface Checkpoint {
   latitude: number
   longitude: number
   mile: number
   segment_miles: number
   eta: string
+  /** Forecast for when the truck gets there; null if it's past the forecast or unavailable. */
+  weather: Weather | null
 }
 
 export interface RouteOption {

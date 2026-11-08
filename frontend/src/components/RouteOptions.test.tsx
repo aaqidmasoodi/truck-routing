@@ -35,9 +35,30 @@ describe('RouteOptions checkpoints', () => {
     duration_minutes: 60,
     points: [],
     checkpoints: [
-      { latitude: 0, longitude: 0, mile: 0, segment_miles: 12.5, eta: '2026-11-09T08:00:00Z' },
-      { latitude: 0, longitude: 0, mile: 25, segment_miles: 25, eta: '2026-11-09T08:25:00Z' },
-      { latitude: 0, longitude: 0, mile: 60, segment_miles: 17.5, eta: '2026-11-09T09:00:00Z' },
+      {
+        latitude: 0,
+        longitude: 0,
+        mile: 0,
+        segment_miles: 12.5,
+        eta: '2026-11-09T08:00:00Z',
+        weather: null,
+      },
+      {
+        latitude: 0,
+        longitude: 0,
+        mile: 25,
+        segment_miles: 25,
+        eta: '2026-11-09T08:25:00Z',
+        weather: { wind_mph: 22, rain_in_per_hr: 0.15, snow_in_per_hr: 0 },
+      },
+      {
+        latitude: 0,
+        longitude: 0,
+        mile: 60,
+        segment_miles: 17.5,
+        eta: '2026-11-09T09:00:00Z',
+        weather: null,
+      },
     ],
   }
 
@@ -49,7 +70,8 @@ describe('RouteOptions checkpoints', () => {
     expect(screen.getByText('Start')).toBeInTheDocument()
     expect(screen.getByText('Checkpoint 1')).toBeInTheDocument()
     expect(screen.getByText('Destination')).toBeInTheDocument()
-    expect(screen.getByText('25 mi in')).toBeInTheDocument()
+    expect(screen.getByText('25 mi in · 22 mph wind, 0.15 in/h rain')).toBeInTheDocument()
+    expect(screen.getByText('60 mi in · No forecast')).toBeInTheDocument()
   })
 
   it('keeps the list closed until asked', () => {

@@ -163,3 +163,5 @@ ROUTING_URLS = os.environ.get(
     "https://routing.openstreetmap.de/routed-car/route/v1/driving,"
     "https://router.project-osrm.org/route/v1/driving",
 ).split(",")
+
+WEATHER_URL = os.environ.get("WEATHER_URL", "https://api.open-meteo.com/v1/forecast")

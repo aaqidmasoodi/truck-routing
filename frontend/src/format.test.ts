@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatArrival, formatDuration, formatMiles } from './format'
+import { formatArrival, formatDuration, formatMiles, formatWeather } from './format'
 
 describe('formatMiles', () => {
   it('rounds and groups thousands', () => {
@@ -27,5 +27,23 @@ describe('formatArrival', () => {
 
   it('adds the weekday once the trip runs into the next day', () => {
     expect(formatArrival('2026-11-10T01:15:00Z', leaving, 'UTC')).toBe('Tue 1:15 AM')
+  })
+})
+
+describe('formatWeather', () => {
+  it('says when there is no forecast', () => {
+    expect(formatWeather(null)).toBe('No forecast')
+  })
+
+  it('calls it dry when nothing is falling', () => {
+    expect(formatWeather({ wind_mph: 12.4, rain_in_per_hr: 0.001, snow_in_per_hr: 0 })).toBe(
+      '12 mph wind, dry',
+    )
+  })
+
+  it('lists rain and snow rates', () => {
+    expect(formatWeather({ wind_mph: 30, rain_in_per_hr: 0.12, snow_in_per_hr: 0.5 })).toBe(
+      '30 mph wind, 0.12 in/h rain, 0.50 in/h snow',
+    )
   })
 })

@@ -6,9 +6,10 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .checkpoints import checkpoints_for_route
+from .checkpoints import ScheduledCheckpoint, checkpoints_for_route
 from .clients.geocoding import GeocodingError, search_places
 from .clients.routing import NoRouteFound, RoutingError, find_routes
+from .clients.weather import WeatherError, fetch_forecasts
 from .risk import Conditions, RiskLevel, checkpoint_risk
 from .serializers import (
     CheckpointRiskInput,
@@ -17,6 +18,7 @@ from .serializers import (
     PlaceSerializer,
     RouteRequest,
     RouteSerializer,
+    WeatherSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -105,14 +107,31 @@ def routes(request: Request) -> Response:
         )
     spacing = form.validated_data["spacing_miles"]
     departure = form.validated_data.get("departure") or timezone.now()
-    return Response(
-        [
-            {
-                **RouteSerializer(route).data,
-                "checkpoints": CheckpointSerializer(
-                    checkpoints_for_route(route, spacing, departure), many=True
-                ).data,
-            }
-            for route in found
-        ]
-    )
+    per_route = [checkpoints_for_route(route, spacing, departure) for route in found]
+    everywhere = [checkpoint for checkpoints in per_route for checkpoint in checkpoints]
+    weather = iter(_weather_at(everywhere))
+
+    body = []
+    for route, checkpoints in zip(found, per_route, strict=True):
+        rows = CheckpointSerializer(checkpoints, many=True).data
+        for row in rows:
+            conditions = next(weather)
+            row["weather"] = WeatherSerializer(conditions).data if conditions else None
+        body.append({**RouteSerializer(route).data, "checkpoints": rows})
+    return Response(body)
+
+
+def _weather_at(checkpoints: list[ScheduledCheckpoint]) -> list[Conditions | None]:
+    """The forecast at each checkpoint's arrival time, in the same order.
+
+    If the forecast service is down the routes are still worth showing, so every
+    checkpoint just gets unknown weather.
+    """
+    try:
+        forecasts = fetch_forecasts([(c.latitude, c.longitude) for c in checkpoints])
+    except WeatherError:
+        return [None] * len(checkpoints)
+    return [
+        forecast.at(checkpoint.eta)
+        for checkpoint, forecast in zip(checkpoints, forecasts, strict=True)
+    ]

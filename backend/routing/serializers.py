@@ -70,3 +70,9 @@ class CheckpointSerializer(serializers.Serializer[Any]):
     mile = serializers.FloatField()
     segment_miles = serializers.FloatField()
     eta = serializers.DateTimeField()
+
+
+class WeatherSerializer(serializers.Serializer[Any]):
+    wind_mph = serializers.FloatField()
+    rain_in_per_hr = serializers.FloatField()
+    snow_in_per_hr = serializers.FloatField()
