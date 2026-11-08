@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -176,3 +176,63 @@ def test_plan_trip_survives_a_forecast_outage(monkeypatch: pytest.MonkeyPatch) -
     plan = plan_trip(NORTH[0], NORTH[-1], 20_000, spacing_miles=10, departure=LEAVING)
 
     assert plan.routes[0].unknown_miles == pytest.approx(35)
+
+
+def clearing_storm(lon: float) -> Forecast:
+    """48 mph wind on the straight road for the next 6 hours, then calm everywhere."""
+    start = int(LEAVING.timestamp()) - 3600
+    hours = list(range(start, start + 96 * 3600, 3600))
+    stormy_until = LEAVING.timestamp() + 6 * 3600
+    wind = [48.0 if lon == -7.0 and t < stormy_until else 5.0 for t in hours]
+    zeros = [0.0] * len(hours)
+    return Forecast(times=hours, wind_mph=wind, rain_in_per_hr=zeros, snow_in_per_hr=zeros)
+
+
+def test_timeline_shows_when_waiting_changes_the_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    routes = [
+        Route("route-1", distance_miles=35, duration_minutes=40, points=NORTH),
+        Route("route-2", distance_miles=40, duration_minutes=50, points=NORTH_EAST),
+    ]
+    monkeypatch.setattr(planner, "find_routes", lambda origin, destination: routes)
+    monkeypatch.setattr(
+        planner, "fetch_forecasts", lambda points: [clearing_storm(lon) for _, lon in points]
+    )
+
+    plan = plan_trip(NORTH[0], NORTH[-1], 20_000, spacing_miles=10, departure=LEAVING)
+
+    assert len(plan.timeline) == 49
+    # Leaving now: take the detour round the storm.
+    assert plan.routes[0].route.id == "route-2"
+    assert plan.timeline[0].routes[0].route.id == "route-2"
+    # Leaving in 8 hours the storm has gone, so the faster straight road wins.
+    later = plan.timeline[8]
+    assert later.routes[0].route.id == "route-1"
+    assert later.reason == "10 min faster"
+    assert later.routes[0].checkpoints[0].checkpoint.eta == LEAVING + timedelta(hours=8)
+
+
+def test_timeline_does_not_flood_the_debug_log(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    route = Route("route-1", distance_miles=35, duration_minutes=40, points=NORTH)
+    monkeypatch.setattr(planner, "find_routes", lambda origin, destination: [route])
+    monkeypatch.setattr(planner, "fetch_forecasts", lambda points: [hourly(CALM) for _ in points])
+
+    with caplog.at_level("DEBUG", logger="routing"):
+        plan_trip(NORTH[0], NORTH[-1], 20_000, spacing_miles=10, departure=LEAVING)
+
+    assert caplog.text.count("routing.risk") < 10
+
+
+def test_timeline_without_forecasts_is_all_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    route = Route("route-1", distance_miles=35, duration_minutes=40, points=NORTH)
+    monkeypatch.setattr(planner, "find_routes", lambda origin, destination: [route])
+
+    def down(points: list[Point]) -> list[Forecast]:
+        raise WeatherError("down")
+
+    monkeypatch.setattr(planner, "fetch_forecasts", down)
+
+    plan = plan_trip(NORTH[0], NORTH[-1], 20_000, spacing_miles=10, departure=LEAVING)
+
+    assert all(moment.routes[0].unknown_miles == pytest.approx(35) for moment in plan.timeline)
