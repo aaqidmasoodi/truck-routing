@@ -5,8 +5,9 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from .clients.geocoding import GeocodingError, search_places
 from .risk import Conditions, RiskLevel, checkpoint_risk
-from .serializers import CheckpointRiskInput
+from .serializers import CheckpointRiskInput, PlaceQuery, PlaceSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -50,3 +51,19 @@ def score_checkpoint(request: Request) -> Response:
             "causes": risk.causes,
         }
     )
+
+
+@api_view(["GET"])
+def places(request: Request) -> Response:
+    form = PlaceQuery(data=request.query_params)
+    if not form.is_valid():
+        return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        found = search_places(form.validated_data["q"])
+    except GeocodingError:
+        return Response(
+            {"detail": "Place search is unavailable right now. Try again in a moment."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+    return Response(PlaceSerializer(found, many=True).data)

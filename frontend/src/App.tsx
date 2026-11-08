@@ -4,15 +4,19 @@ import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Chip from '@mui/material/Chip'
 import Container from '@mui/material/Container'
+import Stack from '@mui/material/Stack'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
-import { getHealth } from './api/client'
+import { getHealth, type Place } from './api/client'
+import PlaceSearch from './components/PlaceSearch'
 import { debug } from './debug'
 
 type ApiState = 'checking' | 'online' | 'offline'
 
 function App() {
   const [api, setApi] = useState<ApiState>('checking')
+  const [origin, setOrigin] = useState<Place | null>(null)
+  const [destination, setDestination] = useState<Place | null>(null)
 
   useEffect(() => {
     getHealth()
@@ -47,9 +51,17 @@ function App() {
           <Typography variant="h5" component="h2" gutterBottom>
             Plan a trip
           </Typography>
-          <Typography color="text.secondary">
+          <Typography color="text.secondary" sx={{ mb: 3 }}>
             Compare routes by weather risk and travel time.
           </Typography>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+            <Box sx={{ flex: 1 }}>
+              <PlaceSearch label="From" value={origin} onChange={setOrigin} />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <PlaceSearch label="To" value={destination} onChange={setDestination} />
+            </Box>
+          </Stack>
         </Card>
       </Container>
     </Box>
