@@ -67,3 +67,14 @@ export function planAt(plan: TripPlan, hours: number): TripPlan {
     routes,
   }
 }
+
+/** The clock time `hours` after the planned departure, e.g. "Mon 2:00 PM". */
+export function departureClock(departure: string, hours: number): string {
+  const when = new Date(new Date(departure).getTime() + hours * HOUR_MS)
+  return when.toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+}
+
+export function describeDeparture(departure: string, hours: number): string {
+  if (hours === 0) return 'Leave as planned'
+  return `Leave ${hours} h later, ${departureClock(departure, hours)}`
+}
