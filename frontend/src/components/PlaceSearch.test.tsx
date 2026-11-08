@@ -72,4 +72,31 @@ describe('PlaceSearch', () => {
 
     expect(await screen.findByText('Place search is unavailable right now')).toBeInTheDocument()
   })
+
+  it('never offers results from an older search while a new one loads', async () => {
+    const chicago: Place = { ...denver, name: 'Chicago', display_name: 'Chicago', latitude: 41.88 }
+    let answer: (response: Response) => void = () => {}
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(async () => Response.json([denver]))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            answer = resolve
+          }),
+      )
+    render(<PlaceSearch label="From" value={null} onChange={() => {}} />)
+
+    await userEvent.type(screen.getByRole('combobox'), 'Denv')
+    await screen.findByText('Denver, Colorado, United States')
+    await userEvent.clear(screen.getByRole('combobox'))
+    await userEvent.type(screen.getByRole('combobox'), 'Chic')
+    await screen.findByText('Loading…')
+
+    expect(screen.queryByText('Denver, Colorado, United States')).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('Denver, Colorado, United States')).not.toBeInTheDocument()
+    answer(Response.json([chicago]))
+    expect(await screen.findByText('Chicago')).toBeInTheDocument()
+  })
 })
