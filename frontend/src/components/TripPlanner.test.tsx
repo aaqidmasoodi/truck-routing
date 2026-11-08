@@ -471,3 +471,22 @@ describe('shareable links', () => {
     expect(await screen.findByText('Link copied')).toBeInTheDocument()
   })
 })
+
+describe('page address after going back', () => {
+  it('starts afresh when going back to edit the trip, keeping what was typed', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+    await screen.findByText('1 route found, safest first')
+    expect(window.location.search).toContain('from=')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back to trip' }))
+
+    expect(window.location.search).toBe('')
+    expect(screen.getByLabelText('From')).toHaveValue('Denver, Colorado, United States')
+    // The routes have left the map too.
+    expect(await screen.findByText('Plan a trip to see the routes here')).toBeInTheDocument()
+  })
+})

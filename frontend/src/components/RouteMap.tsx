@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
 import {
   CircleMarker,
@@ -129,6 +129,9 @@ function Summary({ route, layer, top }: { route: PlannedRoute; layer: MapLayer; 
 function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: RouteMapProps) {
   const theme = useTheme()
   const dark = theme.palette.mode === 'dark'
+  // The credit line shows while planning; once routes are showing it's in the way, so the
+  // key carries it instead.
+  const creditInKey = routes.length > 0
   const tiles = dark ? DARK_TILES : TILES
   const labels = dark ? DARK_LABELS : LABELS
   const [layer, setLayer] = useState<MapLayer>('overall')
@@ -157,11 +160,14 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
           overflow: 'hidden',
         },
         '& .leaflet-bar a': { color: 'm3.onSurface', bgcolor: 'm3.surfaceContainer' },
-        '& .leaflet-control-attribution': {
+        // Leaflet's own stylesheet paints this white, so the selector has to beat it.
+        '& .leaflet-container .leaflet-control-attribution': {
           fontSize: 10,
           bgcolor: 'm3.surfaceContainer',
           color: 'm3.onSurfaceVariant',
           '& a': { color: 'primary.main' },
+          // With routes showing, the credit moves into the key instead.
+          display: creditInKey ? 'none' : undefined,
         },
         '& .leaflet-bottom': { bottom: inset, transition: 'bottom 250ms ease' },
         '& .leaflet-popup-content-wrapper, & .leaflet-popup-tip': {
@@ -258,7 +264,7 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
       ) : null}
       {selected ? <Summary route={selected} layer={layer} top={12} /> : null}
       {routes.length > 0 ? (
-        <RiskLegend layer={layer} bottom={inset + 24} compact={compact} />
+        <RiskLegend layer={layer} bottom={inset + 24} compact={compact} showCredit={creditInKey} />
       ) : (
         <Chip
           label="Plan a trip to see the routes here"
@@ -277,4 +283,5 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
   )
 }
 
-export default RouteMap
+// Skips redrawing (hundreds of route pieces) when nothing it shows has changed.
+export default memo(RouteMap)
