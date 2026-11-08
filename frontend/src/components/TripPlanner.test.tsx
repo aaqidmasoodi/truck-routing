@@ -397,6 +397,36 @@ describe('truck weight', () => {
     await vi.waitFor(() => expect(slider()).toBeNull())
   })
 
+  it('stays open while the slider is pressed and dragged', async () => {
+    renderWithTheme(<TripPlanner />)
+    const field = screen.getByLabelText('Truck weight')
+    await userEvent.click(field)
+    const slider = screen.getByRole('slider', { name: 'Truck weight in pounds' })
+    const track = slider.closest('.MuiSlider-root')!
+
+    // Pressing the track (or touching it on a phone) takes focus from the box without
+    // giving it to the slider.
+    fireEvent.pointerDown(track)
+    fireEvent.blur(field, { relatedTarget: null })
+    fireEvent.change(slider, { target: { value: 50000 } })
+    // Longer than the slider takes to slide shut, so a wrong close would have happened.
+    await new Promise((resolve) => setTimeout(resolve, 600))
+
+    expect(screen.getByRole('slider', { name: 'Truck weight in pounds' })).toBeInTheDocument()
+    expect(field).toHaveValue('50000')
+  })
+
+  it('closes when the driver presses somewhere else', async () => {
+    renderWithTheme(<TripPlanner />)
+    await userEvent.click(screen.getByLabelText('Truck weight'))
+
+    fireEvent.pointerDown(document.body)
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('slider', { name: 'Truck weight in pounds' })).toBeNull(),
+    )
+  })
+
   it('moves with the slider, and the slider follows what is typed', async () => {
     renderWithTheme(<TripPlanner />)
     await userEvent.click(screen.getByLabelText('Truck weight'))

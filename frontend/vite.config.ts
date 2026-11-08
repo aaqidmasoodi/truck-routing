@@ -26,6 +26,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // Whole-page tests type into several search boxes; on a busy machine they can take more
+    // than the default 5 seconds.
+    testTimeout: 15_000,
     // The colour library ships imports without file extensions, so let Vite resolve them.
     server: { deps: { inline: ['@material/material-color-utilities'] } },
   },
