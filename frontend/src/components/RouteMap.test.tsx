@@ -224,3 +224,27 @@ describe('RouteMap credit line', () => {
     expect(screen.getByRole('link', { name: 'Esri' })).toBeInTheDocument()
   })
 })
+
+describe('RouteMap trip ends', () => {
+  it('marks the start and the destination by name', () => {
+    const { container } = renderWithTheme(
+      <RouteMap
+        routes={routes}
+        places={{ start: 'Dublin', end: 'Galway' }}
+        selectedId="route-1"
+        onSelect={() => {}}
+      />,
+    )
+
+    expect(container.querySelector('[title="Start: Dublin"]')).not.toBeNull()
+    expect(container.querySelector('[title="Destination: Galway"]')).not.toBeNull()
+  })
+
+  it('shows no ends before there are routes', () => {
+    const { container } = renderWithTheme(
+      <RouteMap routes={[]} selectedId="" onSelect={() => {}} />,
+    )
+
+    expect(container.querySelector('.trip-end-marker')).toBeNull()
+  })
+})
