@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react'
 import AppBar from '@mui/material/AppBar'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
-import Container from '@mui/material/Container'
-import Link from '@mui/material/Link'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
-import { apiUrl, getHealth } from './api/client'
+import { getHealth } from './api/client'
 import TripPlanner from './components/TripPlanner'
 import { debug } from './debug'
 
@@ -39,6 +37,9 @@ function App() {
   return (
     <Box
       sx={{
+        // A full-height app on bigger screens, so the map fills the window and only the
+        // planner panel scrolls; on a phone the whole page scrolls as normal.
+        height: { md: '100vh' },
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
@@ -46,13 +47,18 @@ function App() {
       }}
     >
       <AppBar
-        position="sticky"
+        position="static"
         color="inherit"
         elevation={0}
         sx={{ bgcolor: 'm3.surfaceContainer', color: 'm3.onSurface' }}
       >
-        <Toolbar sx={{ minHeight: 64 }}>
-          <Typography variant="h6" component="h1" sx={{ flexGrow: 1 }}>
+        <Toolbar variant="dense" sx={{ minHeight: 56 }}>
+          <Typography
+            variant="h6"
+            component="h1"
+            noWrap
+            sx={{ flexGrow: 1, fontSize: { xs: '1.05rem', sm: '1.25rem' } }}
+          >
             Weather-Aware Truck Routing
           </Typography>
           <Chip
@@ -62,20 +68,8 @@ function App() {
           />
         </Toolbar>
       </AppBar>
-      <Container component="main" sx={{ py: 4, flexGrow: 1 }}>
+      <Box component="main" sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <TripPlanner />
-      </Container>
-      <Box
-        component="footer"
-        sx={{ bgcolor: 'm3.surfaceContainer', py: 2, px: 2, textAlign: 'center' }}
-      >
-        <Typography variant="caption" color="text.secondary">
-          Routes by <Link href="https://project-osrm.org">OSRM</Link>, map data ©{' '}
-          <Link href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</Link>.
-          Places by <Link href="https://open-meteo.com">Open-Meteo</Link>, based on{' '}
-          <Link href="https://www.geonames.org">GeoNames</Link>. ·{' '}
-          <Link href={apiUrl('/api/docs/')}>API docs</Link>
-        </Typography>
       </Box>
     </Box>
   )

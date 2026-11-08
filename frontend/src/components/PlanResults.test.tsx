@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { TripPlan } from '../api/client'
 import { plannedRoute, tripPlan } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
+import { useState } from 'react'
+import { planAt } from '../timeline'
 import PlanResults from './PlanResults'
 
 const score = { no_travel_miles: 0, severe_miles: 0, high_miles: 0, average_risk: 0 }
@@ -30,9 +32,24 @@ function stormLater(): TripPlan {
   }
 }
 
+function Harness({ planned }: { planned: TripPlan }) {
+  const [hours, setHours] = useState(0)
+  const plan = planAt(planned, hours)
+  return (
+    <PlanResults
+      planned={planned}
+      plan={plan}
+      hours={hours}
+      onHoursChange={setHours}
+      selectedId={plan.recommended_route_id}
+      onSelect={() => {}}
+    />
+  )
+}
+
 describe('PlanResults', () => {
   it('updates the recommendation as the departure slider moves', () => {
-    renderWithTheme(<PlanResults plan={stormLater()} />)
+    renderWithTheme(<Harness planned={stormLater()} />)
     const card = screen.getByRole('region', { name: 'Recommendation' })
     expect(card).toHaveTextContent('Take Route 1')
 
@@ -44,7 +61,7 @@ describe('PlanResults', () => {
   })
 
   it('leaves out the slider when there is no timeline', () => {
-    renderWithTheme(<PlanResults plan={tripPlan([plannedRoute('route-1')])} />)
+    renderWithTheme(<Harness planned={tripPlan([plannedRoute('route-1')])} />)
 
     expect(screen.queryByRole('slider')).not.toBeInTheDocument()
   })
