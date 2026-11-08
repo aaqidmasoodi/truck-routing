@@ -1,359 +1,82 @@
 # Weather-Aware Truck Routing
 
-Helps a truck driver pick the safest route based on weather, load weight and travel time.
+Pick the safest route for a truck, based on weather, load weight and travel time.
 
-Pick a start, a destination and the truck's weight. The app finds three route options,
-checks the forecast at evenly spaced checkpoints for the time the truck gets to each one,
-scores every checkpoint for wind, rain and snow, and recommends the safest route with a
-one-line reason. A slider shows how the picture changes if you leave up to 48 hours later,
-and the map colours each route by risk or by wind, rain or snow.
+Enter a start, a destination, the truck's weight and when to leave. The app finds three
+routes, checks the forecast every 10, 25 or 50 miles for the time the truck gets there, and
+recommends the safest one. A slider shows how things change if you leave up to 48 hours
+later.
 
-- `backend/`: Django + Django REST Framework API
-- `frontend/`: React + Vite + TypeScript + Material UI
+- `backend/`: Django REST API
+- `frontend/`: React, TypeScript, Material UI, Leaflet
 
-The UI follows Material 3. Colours come from Google's
-[material-color-utilities](https://github.com/material-foundation/material-color-utilities),
-generated from one seed colour in `frontend/src/colorScheme.ts`, and are mapped onto the
-Material UI theme in `frontend/src/theme.ts`.
+## On the map
 
-## How risk is worked out
+The selected route is coloured like traffic: **Clear**, **Caution**, **Slow down**,
+**Dangerous**, **Do not drive**. An icon marks each stretch that isn't clear (wind, rain,
+snow, or a stop sign) and says what's wrong, how bad and when you'd get there. Switch to
+Wind, Rain or Snow to see one condition, with its limits in real units.
 
-Every checkpoint gets a risk level for wind, rain and snow using the thresholds from
-the brief (see `backend/routing/risk.py`). Levels go Low, Moderate, High, Severe,
-No Travel. When a value sits exactly on the edge between two bands it counts as the
-higher one, so 25 mph wind is Moderate and 0.25 in/hr of rain is High.
+## Rules
 
-Heavy trucks catch more wind, so the load weight can push the wind level up:
+Each checkpoint takes the worst of its wind, rain and snow level:
 
-- 45-54 mph wind with more than 30,000 lb becomes No Travel
-- 35-44 mph wind with more than 40,000 lb becomes Severe
+| Level        | Wind      | Rain (in/h) | Snow (in/h) |
+| ------------ | --------- | ----------- | ----------- |
+| Clear        | < 25 mph  | < 0.10      | < 0.5       |
+| Caution      | 25–34     | 0.10–0.25   | 0.5–1.0     |
+| Slow down    | 35–44     | 0.25–0.50   | 1.0–2.0     |
+| Dangerous    | 45–54     | 0.50–1.00   | 2.0–3.0     |
+| Do not drive | ≥ 55      | > 1.00      | > 3.0       |
 
-The checkpoint's overall level is the worst of the three. You can try it directly:
+Heavy loads: 45–54 mph over 30,000 lb is Do not drive; 35–44 mph over 40,000 lb is
+Dangerous. A value on a shared edge goes to the higher level.
 
-```bash
-curl -X POST localhost:8000/api/checkpoint-risk/ \
-  -H "Content-Type: application/json" \
-  -d '{"wind_mph": 48, "rain_in_per_hr": 0.2, "snow_in_per_hr": 0, "weight_lb": 35000}'
-```
+Routes are ranked by fewest Do not drive miles, then Dangerous miles, then Slow down miles,
+then lowest average level (weighted by miles), then shortest time.
 
-This returns the level for each condition, the overall level, and which conditions caused it.
+## Routes
 
-## The trip form
+Routes come from the public [OSRM](https://project-osrm.org) servers, which often return
+only one or two. The rest come from detours through a point either side of the trip. A
+detour is kept only if it's at most 1.6× as slow as the fastest route and mostly on
+different roads. Where geography leaves no third sensible road, a trip shows fewer.
 
-Start, destination, truck weight (required, up to 200,000 lb), when to leave and how often
-to check the weather. Leaving the time blank means now; otherwise it has to be within the
-next 48 hours, since that's as far as the forecast goes. The form checks everything before
-asking the server (`frontend/src/tripDraft.ts`): a weight that isn't a number, the same
-place twice, or a time that's passed or too far ahead all get a message under the field.
-Enter submits, and the arrows swap start and destination.
+Places and weather come from [Open-Meteo](https://open-meteo.com). No API keys are needed.
+Lookups are cached; miles beyond the forecast count as Clear and are flagged.
 
-## Finding places
-
-Start and destination are looked up with the free
-[Open-Meteo geocoding API](https://open-meteo.com/en/docs/geocoding-api), which needs no
-API key. The backend wraps it at `GET /api/places/?q=denver`, caches each search for a day,
-and returns a 502 with a friendly message if the geocoder is down. The search field waits
-for a short pause in typing before it asks, so a word is one request, not one per letter.
-
-Location data is based on [GeoNames](https://www.geonames.org).
-
-## Finding routes
-
-The brief asks for three route options. They come from [OSRM](https://project-osrm.org),
-each with its distance, drive time and the points along the road. OSRM sends the shape as
-an encoded polyline, which `backend/routing/polyline.py` decodes. Results are cached for an
-hour. It asks the OpenStreetMap-hosted OSRM server first and falls back to the OSRM
-project's demo server, since both are free and best effort.
-
-OSRM's own alternatives usually stop at one or two, so the rest are made with detours
-(`backend/routing/clients/routing.py`). The truck is sent through a point off to one side
-of the trip's midpoint, 15% of the trip's length away, then the other side, then 30% out.
-A detour only counts as a new option if:
-
-- it takes at most 1.6 times as long as the fastest route,
-- at least a fifth of its road isn't shared with a route already found, and
-- it doesn't drive out to the detour point and back on the same road. When the detour point
-  lands beside a minor road, that short side trip is cut off first, with its miles and
-  minutes.
-
-It stops as soon as there are three. Routes are numbered fastest first.
-
-Checked against the live servers, 9 of 14 test trips across the US, Canada and Germany get
-three routes. The rest are hemmed in by the coast, mountains or a lake, where every other
-way is far slower, and get one or two.
-
-Two things to know:
-
-- The public OSRM server only has a car profile, so it doesn't know about truck
-  restrictions such as low bridges or weight limits. Set `ROUTING_URLS` (comma separated)
-  to an OSRM server with a truck profile to change that.
-- A trip with only one sensible road, Salt Lake City to Boise for example, still shows one
-  route rather than an unrealistic detour.
-
-Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
-
-## Checkpoints
-
-Weather is checked at points along each route rather than everywhere. The driver picks
-the spacing: every 10, 25 or 50 miles (`spacing_miles`, 25 by default). Each route gets a
-checkpoint at the start, one at every spacing mark, and one at the destination
-(`backend/routing/checkpoints.py`).
-
-- Distances along the route shape use the haversine formula. The decoded shape cuts a few
-  corners, so checkpoint miles are scaled to the road distance OSRM reports.
-- Each checkpoint covers half the road to its neighbours on either side, so the shares add
-  up to the whole route. Ranking uses this to count Severe and High miles.
-- Arrival times assume the route's average speed all the way. OSRM only gives a total
-  time, and this spreads the error evenly instead of letting it pile up at one end.
-
-`departure` is optional (now by default) and must be within the next 48 hours, since
-that's as far as the forecast reaches.
-
-## Weather at each checkpoint
-
-Forecasts come from the free [Open-Meteo forecast API](https://open-meteo.com/en/docs)
-(`backend/routing/clients/weather.py`). Every checkpoint gets the forecast for the hour
-the truck is due there, not the weather right now.
-
-- All checkpoints of all routes go out in one request (100 places per request), with
-  coordinates rounded to about 1 km so nearby checkpoints share a forecast.
-- Forecasts are cached per place for 30 minutes, so asking again only fetches new places.
-- Rain is `rain + showers` and snow is `snowfall`, both totals for the hour ending at each
-  timestamp, so a truck due at 14:20 gets the 14:00 to 15:00 hour. Wind is a snapshot, so it
-  uses the nearest hour. Units come back as mm and cm and are converted to inches here.
-- If Open-Meteo is down, routes still come back and the weather shows as unknown.
-
-## Planning a trip
-
-`POST /api/plan/` does the whole job (`backend/routing/planner.py`): it finds the route
-options, places checkpoints, looks up the forecast for every checkpoint on every route in
-one go, works out each checkpoint's risk for the truck's weight, and ranks the routes.
+## Run locally
 
 ```bash
-curl -X POST localhost:8000/api/plan/ -H "Content-Type: application/json" \
-  -d '{"origin": {"latitude": 39.74, "longitude": -104.98},
-       "destination": {"latitude": 41.88, "longitude": -87.63},
-       "weight_lb": 36000, "spacing_miles": 25}'
+cd backend && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt && python manage.py migrate && python manage.py runserver
 ```
-
-| Field                   | Required | Notes                                                  |
-| ----------------------- | -------- | ------------------------------------------------------ |
-| `origin`, `destination` | yes      | `{"latitude": ..., "longitude": ...}`                  |
-| `weight_lb`             | yes      | Gross weight, 1 to 200,000 lb                          |
-| `spacing_miles`         | no       | 10, 25 (default) or 50                                 |
-| `departure`             | no       | ISO date-time within the next 48 hours, now by default |
-
-The answer lists the routes safest first, with `recommended_route_id`, a plain `reason`
-("12 fewer miles of Severe weather"), and `safe_to_travel`, which is false when even the
-best route runs into No Travel weather. Every checkpoint carries its arrival time, the
-forecast, and its risk level with the conditions that caused it. Miles with no forecast
-(past the forecast window, or Open-Meteo down) are reported as `unknown_weather_miles` and
-count as Low, so the ranking falls back to drive time instead of failing.
-
-No road between the places gives a 404, and the routing service being down gives a 502.
-
-## Reading the results
-
-The results open with a recommendation card: which route to take, why in one line
-("30 fewer miles of High risk weather"), its distance, drive time and arrival, the worst
-risk on the way, and how much longer it takes than the fastest route when that's a
-different one. If every route has No Travel weather the card turns red and says so.
-
-Each route card has a risk strip, the route as one bar from start to finish with every
-stretch in its checkpoint's risk colour, so the routes can be compared at a glance.
-
-## Leaving later
-
-Above the results is a slider from "Now" to "+48 h". Dragging it updates everything
-straight away: the recommendation, the order of the routes, the risk strips, the map
-colours and the arrival times. A "Safest" button jumps to the hour with the least
-dangerous weather.
-
-It doesn't ask the server on every move. Each plan comes with a `timeline`: the same trip
-planned for every departure hour from 0 to 48, worked out by the server from the forecasts
-it already fetched, using the same risk rules and ranking (`plan_trip` in
-`backend/routing/planner.py`). Each checkpoint in it is a short row,
-`[risk, wind risk, rain risk, snow risk, wind mph, rain in/hr, snow in/hr]`, and responses
-are gzipped, so the whole timeline stays small. The frontend rebuilds the plan for any
-hour from it (`frontend/src/timeline.ts`).
-
-## The map
-
-The page is laid out like a map app. On a laptop or desktop the planner is a panel on the
-left and the map fills the rest of the window. The panel shows one page at a time: the trip
-form, with a big **Find routes** button at the bottom, then the routes it found, with a back
-button that returns to the form as it was left. A dot in the top bar shows whether the
-server is answering (green) or not (red).
-
-On a phone the map fills the screen and the planner is a sheet over its bottom. The form is
-compact enough to fit without scrolling. After **Find routes** the sheet shows a short
-version of the results at about half height, with the map zoomed to the routes in the
-space above it. Tapping the sheet's header slides it down out of the way, and the map
-zooms again to use the room.
-
-Routes are drawn with [Leaflet](https://leafletjs.com) on Esri's light gray canvas
-basemap, with its place-name layer on top (`frontend/src/map.ts`). It needs no API key.
-CARTO's free basemap, used at first, now asks for one. Every option is on the map; the selected one is
-bold and drawn on top, and it starts as the recommended route. Clicking a line or a route
-card selects it in both places. The map zooms to fit the routes for each new plan. Leaflet,
-MUI and React are each built into their own chunk, so a change to the app doesn't make
-browsers download the libraries again.
-
-The selected route's checkpoints are dots in their risk colour (grey when there's no
-forecast for that time), with a key in the corner. Clicking one shows when the truck gets
-there, the forecast, and why it got its level, for example "Severe because of wind".
-
-Under the selected route is a wide heatmap band, one stretch per checkpoint (split halfway
-between checkpoints, like the risk miles). The buttons in the corner colour it by risk, or
-by wind, rain or snow on a light-to-dark scale that tops out at the No Travel threshold.
-
-## How routes are ranked
-
-Each checkpoint covers a stretch of road, and that stretch takes the checkpoint's risk
-level. Routes are then compared in this order (see `backend/routing/ranking.py`):
-
-1. Fewest miles of No Travel weather. The brief doesn't rank these, but the truck
-   shouldn't drive into them at all, so they come first.
-2. Fewest Severe miles
-3. Fewest High miles
-4. Lowest average risk, weighted by distance
-5. Shortest travel time
-
-The top route also gets a short reason, such as "12 fewer miles of Severe weather".
-
-## Assumptions and limits
-
-- Arrival times assume the route's average speed all the way, with no stops or breaks.
-- Forecasts go about four days ahead. Miles the truck reaches after that have no
-  forecast, count as Low risk, and are flagged in the results.
-- Forecasts are hourly, so each checkpoint uses the hour nearest its arrival time.
-- Where geography leaves no third sensible road, a trip gets fewer than three routes (see
-  [Finding routes](#finding-routes)).
-- Everything runs on free services with no API keys, so a slow or failed lookup is retried
-  a few times before the app shows an error.
-
-## Running locally
-
-Backend (Python 3.12+):
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-python manage.py migrate
-python manage.py runserver
+cd frontend && npm install && npm run dev
 ```
 
-Frontend (Node 22+), in a second terminal:
+Open http://localhost:5173. API docs are at http://localhost:8000/api/docs/.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Deploy
 
-Open http://localhost:5173. Requests to `/api` are proxied to the backend on port 8000.
+One Docker service serves the API and the built frontend. On Render, choose **New >
+Blueprint** and pick this repo; `render.yaml` does the rest.
 
-### Debugging
-
-- Backend: with `DJANGO_DEBUG=1` (the default locally) the app logs debug lines to the
-  console. Set `LOG_LEVEL` to change that, for example `LOG_LEVEL=WARNING`.
-- Frontend: debug logs show in the browser console during `npm run dev`. For a production
-  build, set `VITE_DEBUG=true` to keep them.
-
-### Running the production build
-
-The Dockerfile builds the frontend and serves it with the API from gunicorn, the same way
-it runs on Render:
-
-```bash
-docker build -t truck-routing .
-docker run -p 8000:8000 -e DJANGO_SECRET_KEY=change-me truck-routing
-```
-
-Then open http://localhost:8000.
-
-## Deploying to Render
-
-The app runs as one free Render web service. Django serves the built frontend with
-WhiteNoise, so the page and the API share an origin and need no CORS setup.
-
-1. Push the repo to GitHub.
-2. In Render, choose **New > Blueprint** and pick the repo. `render.yaml` sets up a free
-   Docker web service with a generated `DJANGO_SECRET_KEY` and a health check on
-   `/api/health/`.
-3. Wait for the first deploy, then open the `onrender.com` URL.
-
-Render's hostname is added to `ALLOWED_HOSTS` automatically. Free services sleep after
-15 minutes without traffic, so the first request after that takes up to a minute while it
-starts again.
-
-Settings read from the environment:
-
-| Variable               | Default                  | Meaning                                  |
-| ---------------------- | ------------------------ | ---------------------------------------- |
-| `DJANGO_DEBUG`         | `1` (`0` in the image)   | Debug mode; off needs a secret key       |
-| `DJANGO_SECRET_KEY`    | a dev key when debugging | Django's secret key                      |
-| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1`    | Hostnames Django will answer to          |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173`  | Only needed if the frontend is elsewhere |
-| `LOG_LEVEL`            | `DEBUG` or `INFO`        | How much the `routing` logger prints     |
-
-## API docs and types
-
-With the backend running, the interactive docs are at http://localhost:8000/api/docs/ and
-the raw OpenAPI schema at `/api/schema/`. The schema is also committed as
-`backend/openapi.yaml`, and the frontend's API types in `frontend/src/api/schema.ts` are
-generated from it, so the two sides can't drift apart quietly.
-
-After changing an endpoint or serializer:
-
-```bash
-cd backend && python manage.py spectacular --file openapi.yaml
-cd ../frontend && npm run gen:api
-```
-
-A backend test fails if `openapi.yaml` is out of date, and CI fails if the generated types
-are. The generator runs with its own copy of TypeScript 5, since TypeScript 7 doesn't have
-the compiler API it needs.
+| Variable               | Default                 | Meaning                     |
+| ---------------------- | ----------------------- | --------------------------- |
+| `DJANGO_SECRET_KEY`    | dev key when debugging  | Required in production      |
+| `DJANGO_DEBUG`         | `1` (`0` in the image)  | Debug mode                  |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1`   | Hostnames to answer         |
+| `ROUTING_URLS`         | two public OSRM servers | OSRM servers, tried in turn |
 
 ## Checks
 
-The backend has about 6,000 tests. Most are in
-`backend/routing/tests/test_brief_conformance.py`, which writes the brief's rules out again
-as a reference and checks the app against it:
-
-- every wind speed from 0 to 100 mph in 0.1 mph steps, rain from 0 to 2 in/hr and snow from
-  0 to 5 in/hr in fine steps, and every named band edge in the tables
-- the load rules over a grid of wind speeds and weights, including 30,000 and 40,000 lb
-  exactly and one pound over
-- risk never going down as wind, rain, snow or weight goes up, and each checkpoint taking
-  its worst condition
-- the ranking order on 2,000 random sets of routes, plus one case per ranking step
-- checkpoints every 10, 25 and 50 miles on routes of many lengths, with arrival times that
-  follow the truck
-
-Backend:
-
 ```bash
-cd backend
-ruff check . && ruff format --check .
-mypy .
-pytest --cov
+cd backend && ruff check . && mypy . && pytest --cov
+cd frontend && npm run lint && npm run typecheck && npm test
 ```
 
-Frontend:
-
-```bash
-cd frontend
-npm run lint && npm run format:check
-npm run typecheck
-npm test
-```
-
-Both run in CI on every pull request. To run them before each commit:
-
-```bash
-pip install pre-commit
-pre-commit install
-```
+`backend/routing/tests/test_brief_conformance.py` checks the risk, load, ranking and
+checkpoint rules against a reference written from the brief, across thousands of inputs.
+CI runs everything on every pull request.
