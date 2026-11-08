@@ -1,8 +1,9 @@
-import { screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { plannedRoute, tripPlan } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
+import { toLocalInput } from '../tripDraft'
 import TripPlanner from './TripPlanner'
 
 const places: Record<string, object> = {
@@ -99,6 +100,31 @@ describe('TripPlanner', () => {
     expect(screen.getByLabelText('To')).toHaveValue('Denver, Colorado, United States')
     await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
     expect(planCall().origin).toEqual({ latitude: 41.88, longitude: -87.63 })
+  })
+
+  it('sends a chosen departure time', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+    const later = new Date(Date.now() + 3 * 60 * 60 * 1000)
+    later.setSeconds(0, 0)
+
+    await pickTrip()
+    fireEvent.change(screen.getByLabelText('Leave at'), {
+      target: { value: toLocalInput(later) },
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    expect(planCall().departure).toBe(later.toISOString())
+  })
+
+  it('says when the departure is too far ahead', async () => {
+    renderWithTheme(<TripPlanner />)
+
+    fireEvent.change(screen.getByLabelText('Leave at'), {
+      target: { value: toLocalInput(new Date(Date.now() + 72 * 60 * 60 * 1000)) },
+    })
+
+    expect(screen.getByText('Pick a time within the next 48 hours')).toBeInTheDocument()
   })
 
   it('plans the trip when Enter is pressed', async () => {
