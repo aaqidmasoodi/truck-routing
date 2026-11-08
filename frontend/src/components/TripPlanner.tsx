@@ -291,10 +291,23 @@ function TripPlanner() {
             flexDirection: 'column',
             overflowY: bodyHidden ? 'hidden' : 'auto',
             // On a phone it can still scroll, but without a scroll bar squeezing the layout.
-            scrollbarWidth: { xs: 'none', md: 'auto' },
-            '&::-webkit-scrollbar': { display: { xs: 'none', md: 'block' } },
+            // A slim Material-style scroll bar on big screens instead of the system one:
+            // a rounded thumb in the outline colour on a clear track. None on a phone.
+            scrollbarWidth: { xs: 'none', md: 'thin' },
+            scrollbarColor: (theme) =>
+              theme.palette.m3 ? `${theme.palette.m3.outlineVariant} transparent` : undefined,
+            '&::-webkit-scrollbar': { display: { xs: 'none', md: 'block' }, width: 8 },
+            '&::-webkit-scrollbar-track': { background: 'transparent' },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: 'm3.outlineVariant',
+              borderRadius: 4,
+            },
+            '&::-webkit-scrollbar-thumb:hover': { backgroundColor: 'm3.outline' },
+            // On a big screen the scroll bar takes room on the right only, so the same room
+            // is kept on the left too, keeping the content centred whether it scrolls or not.
+            scrollbarGutter: { md: 'stable both-edges' },
             overscrollBehavior: 'contain',
-            px: { xs: 2.5, sm: 3 },
+            px: { xs: 2.5, sm: 3, md: 2 },
             pb: bodyHidden ? 0 : 2,
             pt: bodyHidden ? 0 : { xs: 0.5, md: 3 },
             // A tall panel on big screens; on a phone it slides between its three heights.
