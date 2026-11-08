@@ -473,7 +473,7 @@ describe('shareable links', () => {
 })
 
 describe('page address after going back', () => {
-  it('returns to the plain page when going back to edit the trip', async () => {
+  it('starts afresh when going back to edit the trip, keeping what was typed', async () => {
     fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
     renderWithTheme(<TripPlanner />)
 
@@ -486,5 +486,7 @@ describe('page address after going back', () => {
 
     expect(window.location.search).toBe('')
     expect(screen.getByLabelText('From')).toHaveValue('Denver, Colorado, United States')
+    // The routes have left the map too.
+    expect(await screen.findByText('Plan a trip to see the routes here')).toBeInTheDocument()
   })
 })

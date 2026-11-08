@@ -187,7 +187,12 @@ function TripPlanner() {
   const backToForm = () => {
     setPage('form')
     setSheetState('half')
-    // Back to editing, so the address is the plain page again until a trip is planned.
+    // Back to editing starts afresh, the same as changing the trip: the routes leave the
+    // map and the address is the plain page again until the next trip is planned. What
+    // was typed stays in the form.
+    setLookup(IDLE)
+    setHours(0)
+    setPicked(null)
     try {
       window.history.replaceState(null, '', window.location.pathname)
     } catch {
