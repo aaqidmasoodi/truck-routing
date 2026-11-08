@@ -1,0 +1,12 @@
+.git
+.github
+**/node_modules
+**/dist
+**/__pycache__
+**/.venv
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+backend/.coverage
+backend/db.sqlite3
+backend/staticfiles
