@@ -77,6 +77,7 @@ function TripForm({ loading, onSubmit, onChange }: TripFormProps) {
             label="To"
             value={draft.destination}
             onChange={(place) => update('destination', place)}
+            error={errors.destination}
           />
         </Box>
       </Stack>

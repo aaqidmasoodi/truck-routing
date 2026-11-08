@@ -9,6 +9,8 @@ interface PlaceSearchProps {
   label: string
   value: Place | null
   onChange: (place: Place | null) => void
+  /** A problem with the chosen place, shown under the field. */
+  error?: string | undefined
 }
 
 interface SearchResult {
@@ -20,7 +22,7 @@ interface SearchResult {
 const MIN_LETTERS = 2
 const TYPING_PAUSE_MS = 300
 
-function PlaceSearch({ label, value, onChange }: PlaceSearchProps) {
+function PlaceSearch({ label, value, onChange, error }: PlaceSearchProps) {
   const [input, setInput] = useState('')
   const [result, setResult] = useState<SearchResult>({ query: '', places: [], failed: false })
 
@@ -67,8 +69,8 @@ function PlaceSearch({ label, value, onChange }: PlaceSearchProps) {
         <TextField
           {...params}
           label={label}
-          error={failed}
-          helperText={failed ? 'Place search is unavailable right now' : ' '}
+          error={failed || Boolean(error)}
+          helperText={failed ? 'Place search is unavailable right now' : (error ?? ' ')}
           slotProps={{
             ...params.slotProps,
             input: {

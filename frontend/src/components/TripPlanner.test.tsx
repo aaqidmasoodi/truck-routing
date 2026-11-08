@@ -127,6 +127,20 @@ describe('TripPlanner', () => {
     expect(screen.getByText('Pick a time within the next 48 hours')).toBeInTheDocument()
   })
 
+  it('will not plan a trip to the same place', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await userEvent.type(screen.getByLabelText('From'), 'Denv')
+    await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
+    await userEvent.type(screen.getByLabelText('To'), 'Denv')
+    await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
+    await userEvent.type(screen.getByLabelText('Truck weight'), '36000')
+
+    expect(screen.getByText('Pick a destination different from the start')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Find routes' })).toBeDisabled()
+  })
+
   it('plans the trip when Enter is pressed', async () => {
     fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
     renderWithTheme(<TripPlanner />)
