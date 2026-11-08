@@ -17,6 +17,21 @@ The selected route is coloured like traffic: **Clear**, **Caution**, **Slow down
 snow, or a stop sign) and says what's wrong, how bad and when you'd get there. Switch to
 Wind, Rain or Snow to see one condition, with its limits in real units.
 
+## Example
+
+Laredo to Corpus Christi on 8 November 2026, during heavy rain in South Texas. Leaving
+now, every route runs into rain too heavy to drive in, so the app says so and suggests
+waiting:
+
+![Leaving now: no safe route](docs/do-not-drive.jpg)
+
+Leaving 13 hours later, the rain has passed. The app picks Route 3, which is clear all the
+way, over the faster Route 1, which still has a stretch of caution:
+
+![Leaving 13 hours later: clear all the way](docs/leave-later.jpg)
+
+Weather changes, so the same trip will look different on another day.
+
 ## Rules
 
 Each checkpoint takes the worst of its wind, rain and snow level:

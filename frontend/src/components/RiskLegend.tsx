@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import Box from '@mui/material/Box'
+import ButtonBase from '@mui/material/ButtonBase'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import CloseIcon from '@mui/icons-material/Close'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { BANDS, CONDITIONS, type MapLayer } from '../conditions'
 
 const TITLES: Record<MapLayer, string> = {
@@ -13,28 +17,62 @@ const TITLES: Record<MapLayer, string> = {
 interface RiskLegendProps {
   layer?: MapLayer
   bottom?: number
+  /** On a phone the key starts as a small button, so it doesn't hide the route. */
+  compact?: boolean
 }
 
 /** What the colours mean: advice for the overall view, real units for wind, rain, snow. */
-function RiskLegend({ layer = 'overall', bottom = 24 }: RiskLegendProps) {
+function RiskLegend({ layer = 'overall', bottom = 24, compact = false }: RiskLegendProps) {
+  const [open, setOpen] = useState(!compact)
+  const place = {
+    position: 'absolute',
+    left: 12,
+    bottom,
+    transition: 'bottom 250ms ease',
+    zIndex: 1000, // above Leaflet's panes
+    bgcolor: 'm3.surfaceContainer',
+    boxShadow: 2,
+  } as const
+
+  if (!open) {
+    return (
+      <ButtonBase
+        onClick={() => setOpen(true)}
+        aria-label="Show map key"
+        sx={{ ...place, gap: 0.5, px: 1.25, py: 0.75, borderRadius: '16px' }}
+      >
+        <Stack direction="row" sx={{ gap: '2px' }}>
+          {CONDITIONS.map((item) => (
+            <Box
+              key={item.label}
+              sx={{ width: 6, height: 12, borderRadius: 1, bgcolor: item.colour }}
+            />
+          ))}
+        </Stack>
+        <Typography variant="caption" sx={{ fontWeight: 500, ml: 0.5 }}>
+          Key
+        </Typography>
+        <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+      </ButtonBase>
+    )
+  }
+
   return (
-    <Box
-      sx={{
-        position: 'absolute',
-        left: 12,
-        bottom,
-        transition: 'bottom 250ms ease',
-        zIndex: 1000, // above Leaflet's panes
-        px: 1.5,
-        py: 1,
-        borderRadius: '12px',
-        bgcolor: 'm3.surfaceContainer',
-        boxShadow: 2,
-      }}
-    >
-      <Typography variant="caption" component="p" sx={{ fontWeight: 600, mb: 0.5 }}>
-        {TITLES[layer]}
-      </Typography>
+    <Box sx={{ ...place, px: 1.5, py: 1, borderRadius: '12px' }}>
+      <Stack direction="row" sx={{ alignItems: 'center', mb: 0.5 }}>
+        <Typography variant="caption" component="p" sx={{ fontWeight: 600, flexGrow: 1 }}>
+          {TITLES[layer]}
+        </Typography>
+        {compact ? (
+          <ButtonBase
+            onClick={() => setOpen(false)}
+            aria-label="Hide map key"
+            sx={{ borderRadius: '50%', ml: 1 }}
+          >
+            <CloseIcon sx={{ fontSize: 16 }} />
+          </ButtonBase>
+        ) : null}
+      </Stack>
       <Box role="list" aria-label={`${TITLES[layer]} key`}>
         {CONDITIONS.map((item, value) => (
           <Stack
