@@ -7,6 +7,7 @@ import Container from '@mui/material/Container'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import { getHealth } from './api/client'
+import { debug } from './debug'
 
 type ApiState = 'checking' | 'online' | 'offline'
 
@@ -16,7 +17,10 @@ function App() {
   useEffect(() => {
     getHealth()
       .then(() => setApi('online'))
-      .catch(() => setApi('offline'))
+      .catch((error: unknown) => {
+        debug('app', 'health check failed', error)
+        setApi('offline')
+      })
   }, [])
 
   return (

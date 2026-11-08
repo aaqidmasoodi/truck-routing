@@ -9,9 +9,20 @@ Thresholds come straight from the assessment brief:
 Where two bands share an edge (rain at 0.25, for example) the value goes into the
 higher band, the same way wind works. The top of the Severe band is inclusive
 because the brief only says "more than" for No Travel.
+
+Heavier loads make wind worse:
+
+    Wind 45-54 mph with more than 30,000 lb  -> No Travel
+    Wind 35-44 mph with more than 40,000 lb  -> Severe
+
+A checkpoint's overall risk is the worst of its wind, rain and snow levels.
 """
 
+import logging
+from dataclasses import dataclass
 from enum import IntEnum
+
+logger = logging.getLogger(__name__)
 
 
 class RiskLevel(IntEnum):
@@ -68,3 +79,57 @@ def snow_risk(inches_per_hour: float) -> RiskLevel:
     if inches_per_hour <= 3.0:
         return RiskLevel.SEVERE
     return RiskLevel.NO_TRAVEL
+
+
+def wind_risk_for_load(speed_mph: float, weight_lb: float) -> RiskLevel:
+    _require_non_negative(weight_lb, "Load weight")
+    level = wind_risk(speed_mph)
+    if level == RiskLevel.SEVERE and weight_lb > 30_000:
+        return RiskLevel.NO_TRAVEL
+    if level == RiskLevel.HIGH and weight_lb > 40_000:
+        return RiskLevel.SEVERE
+    return level
+
+
+@dataclass(frozen=True)
+class Conditions:
+    wind_mph: float
+    rain_in_per_hr: float
+    snow_in_per_hr: float
+
+
+@dataclass(frozen=True)
+class CheckpointRisk:
+    wind: RiskLevel
+    rain: RiskLevel
+    snow: RiskLevel
+
+    @property
+    def level(self) -> RiskLevel:
+        return max(self.wind, self.rain, self.snow)
+
+    @property
+    def causes(self) -> list[str]:
+        """Conditions responsible for the overall level, empty when everything is Low."""
+        if self.level == RiskLevel.LOW:
+            return []
+        levels = {"wind": self.wind, "rain": self.rain, "snow": self.snow}
+        return [name for name, level in levels.items() if level == self.level]
+
+
+def checkpoint_risk(conditions: Conditions, weight_lb: float) -> CheckpointRisk:
+    risk = CheckpointRisk(
+        wind=wind_risk_for_load(conditions.wind_mph, weight_lb),
+        rain=rain_risk(conditions.rain_in_per_hr),
+        snow=snow_risk(conditions.snow_in_per_hr),
+    )
+    logger.debug(
+        "checkpoint %s at %s lb -> %s (wind=%s rain=%s snow=%s)",
+        conditions,
+        weight_lb,
+        risk.level.label,
+        risk.wind.label,
+        risk.rain.label,
+        risk.snow.label,
+    )
+    return risk
