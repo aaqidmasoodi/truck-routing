@@ -44,8 +44,15 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         overflow: 'hidden',
         border: 1,
         borderColor: 'm3.outlineVariant',
-        // Leaflet's own controls, nudged towards Material 3.
+        // Leaflet's own controls and popups, nudged towards Material 3.
         '& .leaflet-bar a': { color: 'm3.onSurface' },
+        '& .leaflet-popup-content-wrapper, & .leaflet-popup-tip': {
+          bgcolor: 'm3.surfaceContainerHigh',
+          color: 'm3.onSurface',
+        },
+        '& .leaflet-popup-content-wrapper': { borderRadius: '12px' },
+        '& .leaflet-popup-content': { m: 1.5, lineHeight: 1.5 },
+        '& .leaflet-popup-content p': { m: 0 },
       }}
     >
       <MapContainer
