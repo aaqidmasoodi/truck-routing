@@ -42,6 +42,7 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
   const size = compact ? 'small' : 'medium'
   const [recent, setRecent] = useState<RecentTrip[]>(loadRecentTrips)
   const places = recentPlaces(recent)
+  const lastTrip = recent[0]
 
   /** Fill in both ends of a trip planned before. */
   const reuse = ({ origin, destination }: RecentTrip) => {
@@ -161,33 +162,19 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
         </Stack>
         {compact ? swapButton : null}
       </Stack>
-      {recent.length > 0 ? (
-        // One line of recent trips; tap one to fill in both ends. Scrolls sideways if long.
-        <Stack
-          direction="row"
-          spacing={1}
-          aria-label="Recent trips"
-          sx={{
-            mt: compact ? 1 : 1.5,
-            mb: compact ? 0 : 0.5,
-            overflowX: 'auto',
-            scrollbarWidth: 'none',
-            '&::-webkit-scrollbar': { display: 'none' },
-          }}
-        >
-          {recent.map((t) => (
-            <Chip
-              key={`${t.origin.latitude},${t.origin.longitude};${t.destination.latitude},${t.destination.longitude}`}
-              icon={<HistoryIcon />}
-              label={tripLabel(t, recent)}
-              title={`${t.origin.display_name} → ${t.destination.display_name}`}
-              onClick={() => reuse(t)}
-              size="small"
-              variant="outlined"
-              sx={{ flexShrink: 0 }}
-            />
-          ))}
-        </Stack>
+      {lastTrip ? (
+        // The last trip, to fill in both ends with one tap. Older places stay in the dropdowns.
+        <Box aria-label="Last trip" sx={{ mt: compact ? 1 : 1.5, mb: compact ? 0 : 0.5 }}>
+          <Chip
+            icon={<HistoryIcon />}
+            label={tripLabel(lastTrip, recent)}
+            title={`${lastTrip.origin.display_name} → ${lastTrip.destination.display_name}`}
+            onClick={() => reuse(lastTrip)}
+            size="small"
+            variant="outlined"
+            sx={{ maxWidth: '100%' }}
+          />
+        </Box>
       ) : null}
       {compact ? (
         // Phone: weight and departure share a row, then the spacing on one short line.

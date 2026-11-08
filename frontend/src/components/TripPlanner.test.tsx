@@ -334,6 +334,31 @@ describe('recent searches', () => {
   it('shows nothing extra the first time', () => {
     renderWithTheme(<TripPlanner />)
 
-    expect(screen.queryByLabelText('Recent trips')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Last trip')).not.toBeInTheDocument()
+  })
+})
+
+describe('last trip', () => {
+  it('shows only the most recent trip below the fields', () => {
+    const place = (name: string, latitude: number) => ({
+      name,
+      region: '',
+      country: '',
+      display_name: name,
+      latitude,
+      longitude: 0,
+    })
+    localStorage.setItem(
+      'truck-routing:recent-trips',
+      JSON.stringify([
+        { origin: place('Austin', 1), destination: place('Dallas', 2) },
+        { origin: place('Denver', 3), destination: place('Chicago', 4) },
+      ]),
+    )
+
+    renderWithTheme(<TripPlanner />)
+
+    expect(screen.getByRole('button', { name: 'Austin → Dallas' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Denver → Chicago' })).not.toBeInTheDocument()
   })
 })
