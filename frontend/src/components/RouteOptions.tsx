@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Button from '@mui/material/Button'
+import ButtonBase from '@mui/material/ButtonBase'
 import Card from '@mui/material/Card'
 import CardActionArea from '@mui/material/CardActionArea'
 import CardContent from '@mui/material/CardContent'
@@ -7,6 +7,7 @@ import Chip from '@mui/material/Chip'
 import Collapse from '@mui/material/Collapse'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import type { TripPlan } from '../api/client'
 import { formatArrival, formatDuration, formatMiles } from '../format'
 import { arrival, riskyMiles, routeName } from '../routes'
@@ -72,14 +73,32 @@ function RouteOptions({ plan, selectedId, onSelect }: RouteOptionsProps) {
                 </Stack>
               </Stack>
             </CardActionArea>
-            <Button
-              size="small"
+            {/* The whole strip opens the list, with a chevron on the right to say so. */}
+            <ButtonBase
               onClick={() => setOpen(open === route.id ? null : route.id)}
               aria-expanded={open === route.id}
-              sx={{ ml: 1, mb: 1 }}
+              sx={{
+                width: '100%',
+                justifyContent: 'space-between',
+                px: 2,
+                py: 1.25,
+                borderTop: 1,
+                borderColor: 'm3.outlineVariant',
+                color: 'primary.main',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
             >
-              {route.checkpoints.length} checkpoints
-            </Button>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {route.checkpoints.length} checkpoints
+              </Typography>
+              <ExpandMoreIcon
+                fontSize="small"
+                sx={{
+                  transition: 'transform 200ms ease',
+                  transform: open === route.id ? 'rotate(180deg)' : 'none',
+                }}
+              />
+            </ButtonBase>
             <Collapse in={open === route.id} unmountOnExit>
               <CardContent sx={{ pt: 0 }}>
                 <CheckpointList checkpoints={route.checkpoints} />

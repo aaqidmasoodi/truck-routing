@@ -15,6 +15,9 @@ export interface Condition {
   text: string
   container: string
   onContainer: string
+  /** The same soft tint and text for dark mode. */
+  darkContainer: string
+  onDarkContainer: string
 }
 
 export const CONDITIONS: readonly Condition[] = [
@@ -25,6 +28,8 @@ export const CONDITIONS: readonly Condition[] = [
     text: '#ffffff',
     container: '#e3f1e6',
     onContainer: '#1f5130',
+    darkContainer: '#1e3a26',
+    onDarkContainer: '#b7e4c2',
   },
   {
     label: 'Caution',
@@ -33,6 +38,8 @@ export const CONDITIONS: readonly Condition[] = [
     text: '#3d2c00',
     container: '#fbf1d2',
     onContainer: '#6a4d00',
+    darkContainer: '#3d3110',
+    onDarkContainer: '#f5d98a',
   },
   {
     label: 'Slow down',
@@ -41,6 +48,8 @@ export const CONDITIONS: readonly Condition[] = [
     text: '#ffffff',
     container: '#fbe6d6',
     onContainer: '#7f3a0a',
+    darkContainer: '#43260f',
+    onDarkContainer: '#f7c39b',
   },
   {
     label: 'Dangerous',
@@ -49,6 +58,8 @@ export const CONDITIONS: readonly Condition[] = [
     text: '#ffffff',
     container: '#f8dede',
     onContainer: '#7f1f1f',
+    darkContainer: '#4a1d1d',
+    onDarkContainer: '#f4b4b4',
   },
   {
     label: 'Do not drive',
@@ -57,6 +68,8 @@ export const CONDITIONS: readonly Condition[] = [
     text: '#ffffff',
     container: '#e4e1e6',
     onContainer: '#1d1b20',
+    darkContainer: '#2e2c31',
+    onDarkContainer: '#e6e1e6',
   },
 ]
 
@@ -67,6 +80,15 @@ export const NO_FORECAST: Condition = {
   text: '#1b1b1f',
   container: '#eeeeee',
   onContainer: '#4a4a4a',
+  darkContainer: '#2b2b2b',
+  onDarkContainer: '#c4c4c4',
+}
+
+/** A condition's soft tint and text for the light or dark theme. */
+export function tint(look: Condition, mode: 'light' | 'dark') {
+  return mode === 'dark'
+    ? { background: look.darkContainer, text: look.onDarkContainer }
+    : { background: look.container, text: look.onContainer }
 }
 
 export function condition(level: RiskLevel | number | null | undefined): Condition {

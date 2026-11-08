@@ -14,6 +14,7 @@ import ButtonBase from '@mui/material/ButtonBase'
 import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Skeleton from '@mui/material/Skeleton'
+import Snackbar from '@mui/material/Snackbar'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
@@ -22,9 +23,11 @@ import { useTheme } from '@mui/material/styles'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import LinkIcon from '@mui/icons-material/Link'
 import { ApiError, planTrip, type Trip, type TripPlan } from '../api/client'
 import { debug } from '../debug'
 import { planAt } from '../timeline'
+import { draftFromSearch } from '../tripLink'
 import CompactResults from './CompactResults'
 import Credits from './Credits'
 import PlanningPlaceholder from './PlanningPlaceholder'
@@ -78,6 +81,23 @@ function TripPlanner() {
   const [lookup, setLookup] = useState<Lookup>({ state: 'idle' })
   const [page, setPage] = useState<Page>('form')
   const [tripName, setTripName] = useState('')
+  // A trip opened from a shared link, planned as soon as the page loads.
+  const [linked] = useState(() => draftFromSearch(window.location.search))
+  const [copied, setCopied] = useState(false)
+
+  const copyLink = () => {
+    void navigator.clipboard
+      ?.writeText(window.location.href)
+      .then(() => setCopied(true))
+      .catch(() => {})
+  }
+  const copyButton = (
+    <Tooltip title="Copy a link to this trip">
+      <IconButton aria-label="Copy link to this trip" onClick={copyLink}>
+        <LinkIcon />
+      </IconButton>
+    </Tooltip>
+  )
   const [sheetState, setSheetState] = useState<Sheet>('half')
   const [hours, setHours] = useState(0)
   const [picked, setPicked] = useState<string | null>(null)
@@ -255,6 +275,7 @@ function TripPlanner() {
                 </Typography>
                 {sheetState === 'peek' ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               </ButtonBase>
+              {page === 'results' ? copyButton : null}
             </Stack>
           </Box>
         )}
@@ -270,10 +291,23 @@ function TripPlanner() {
             flexDirection: 'column',
             overflowY: bodyHidden ? 'hidden' : 'auto',
             // On a phone it can still scroll, but without a scroll bar squeezing the layout.
-            scrollbarWidth: { xs: 'none', md: 'auto' },
-            '&::-webkit-scrollbar': { display: { xs: 'none', md: 'block' } },
+            // A slim Material-style scroll bar on big screens instead of the system one:
+            // a rounded thumb in the outline colour on a clear track. None on a phone.
+            scrollbarWidth: { xs: 'none', md: 'thin' },
+            scrollbarColor: (theme) =>
+              theme.palette.m3 ? `${theme.palette.m3.outlineVariant} transparent` : undefined,
+            '&::-webkit-scrollbar': { display: { xs: 'none', md: 'block' }, width: 8 },
+            '&::-webkit-scrollbar-track': { background: 'transparent' },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: 'm3.outlineVariant',
+              borderRadius: 4,
+            },
+            '&::-webkit-scrollbar-thumb:hover': { backgroundColor: 'm3.outline' },
+            // On a big screen the scroll bar takes room on the right only, so the same room
+            // is kept on the left too, keeping the content centred whether it scrolls or not.
+            scrollbarGutter: { md: 'stable both-edges' },
             overscrollBehavior: 'contain',
-            px: { xs: 2.5, sm: 3 },
+            px: { xs: 2.5, sm: 3, md: 2 },
             pb: bodyHidden ? 0 : 2,
             pt: bodyHidden ? 0 : { xs: 0.5, md: 3 },
             // A tall panel on big screens; on a phone it slides between its three heights.
@@ -306,6 +340,7 @@ function TripPlanner() {
               </Box>
             ) : null}
             <TripForm
+              initialDraft={linked}
               compact={!wide}
               loading={lookup.state === 'loading'}
               onSubmit={(trip, name) => void search(trip, name)}
@@ -333,6 +368,7 @@ function TripPlanner() {
                       {tripName}
                     </Typography>
                   </Box>
+                  <Box sx={{ ml: 'auto' }}>{copyButton}</Box>
                 </Stack>
               ) : null}
               {lookup.state === 'loading' ? <PlanningPlaceholder compact={!wide} /> : null}
@@ -367,6 +403,13 @@ function TripPlanner() {
           {wide || page === 'form' || full ? <Credits /> : null}
         </Box>
       </Paper>
+      <Snackbar
+        open={copied}
+        autoHideDuration={2500}
+        onClose={() => setCopied(false)}
+        message="Link copied"
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      />
     </Box>
   )
 }

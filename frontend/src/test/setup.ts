@@ -6,4 +6,5 @@ afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
   localStorage.clear()
+  window.history.replaceState(null, '', '/')
 })

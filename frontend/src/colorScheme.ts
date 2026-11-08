@@ -1,7 +1,7 @@
 import {
   Hct,
   MaterialDynamicColors,
-  SchemeVibrant,
+  SchemeTonalSpot,
   argbFromHex,
   hexFromArgb,
 } from '@material/material-color-utilities'
@@ -43,7 +43,7 @@ export type ColorRole = keyof typeof roles
 export type ColorScheme = Record<ColorRole, string>
 
 export function buildColorScheme(seedHex: string, dark = false): ColorScheme {
-  const scheme = new SchemeVibrant(Hct.fromInt(argbFromHex(seedHex)), dark, 0)
+  const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex(seedHex)), dark, 0)
   const entries = Object.entries(roles).map(([name, color]) => [
     name,
     hexFromArgb(color.getArgb(scheme)),

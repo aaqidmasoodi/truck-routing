@@ -1,7 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FocusEvent, type FormEvent } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
+import Collapse from '@mui/material/Collapse'
+import Slider from '@mui/material/Slider'
+import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
 import Stack from '@mui/material/Stack'
@@ -20,7 +23,18 @@ import {
   tripLabel,
   type RecentTrip,
 } from '../recentTrips'
-import { checkDraft, emptyDraft, latestDeparture, toLocalInput, type TripDraft } from '../tripDraft'
+import {
+  checkDraft,
+  DEFAULT_WEIGHT_LB,
+  emptyDraft,
+  latestDeparture,
+  parseWeight,
+  SLIDER_MAX_LB,
+  SLIDER_MIN_LB,
+  toLocalInput,
+  type TripDraft,
+} from '../tripDraft'
+import { tripSearch } from '../tripLink'
 import PlaceSearch from './PlaceSearch'
 import SpacingPicker from './SpacingPicker'
 
@@ -30,12 +44,20 @@ interface TripFormProps {
   onSubmit: (trip: Trip, name: string) => void
   /** Called on any edit, since old results no longer match the form. */
   onChange: () => void
+  /** A trip to start from, such as one opened from a shared link; it's planned straight away. */
+  initialDraft?: TripDraft | null
   /** Small fields and no hints, so the whole form fits on a phone without scrolling. */
   compact?: boolean
 }
 
-function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProps) {
-  const [draft, setDraft] = useState<TripDraft>(emptyDraft)
+function TripForm({
+  loading,
+  onSubmit,
+  onChange,
+  initialDraft = null,
+  compact = false,
+}: TripFormProps) {
+  const [draft, setDraft] = useState<TripDraft>(initialDraft ?? emptyDraft)
   // The clock moves on, so this is refreshed on every edit and checked again on submit.
   const [now, setNow] = useState(() => new Date())
   const { trip, errors } = checkDraft(draft, now)
@@ -73,9 +95,30 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
       setRecent((trips) =>
         rememberTrip(trips, { origin: draft.origin!, destination: draft.destination! }),
       )
-      onSubmit(latest.trip, `${draft.origin?.name ?? ''} → ${draft.destination?.name ?? ''}`)
+      plan(latest.trip, draft)
     }
   }
+
+  /** Plan the trip, and put it in the page address so the link can be shared. */
+  const plan = (checked: Trip, planned: TripDraft) => {
+    try {
+      window.history.replaceState(null, '', tripSearch(planned) || window.location.pathname)
+    } catch {
+      // Some embedded browsers refuse; the trip is still planned.
+    }
+    onSubmit(checked, `${planned.origin?.name ?? ''} → ${planned.destination?.name ?? ''}`)
+  }
+
+  // A trip opened from a link is planned once, as soon as the page loads.
+  const plannedFromLink = useRef(false)
+  useEffect(() => {
+    if (plannedFromLink.current || !initialDraft) return
+    plannedFromLink.current = true
+    const linked = checkDraft(initialDraft, new Date())
+    if (linked.trip) plan(linked.trip, initialDraft)
+    // Only ever on the first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const swapButton = (
     <Tooltip title="Swap start and destination">
@@ -91,14 +134,28 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
     </Tooltip>
   )
 
+  // The slider only shows while the weight is being set, so it's clear what it's for.
+  const [weightOpen, setWeightOpen] = useState(false)
+  const weightParts = useRef<HTMLElement[]>([])
+  const keepWeightOpen = (element: HTMLElement | null) => {
+    if (element && !weightParts.current.includes(element)) weightParts.current.push(element)
+  }
+  const closeUnlessStillOnWeight = (event: FocusEvent) => {
+    const next = event.relatedTarget as Node | null
+    if (!next || !weightParts.current.some((part) => part.contains(next))) setWeightOpen(false)
+  }
+
   const weight = (
     <TextField
+      ref={keepWeightOpen}
+      onFocus={() => setWeightOpen(true)}
+      onBlur={closeUnlessStillOnWeight}
       label="Truck weight"
       size={size}
       value={draft.weightText}
       onChange={(event) => update('weightText', event.target.value)}
       error={Boolean(errors.weight)}
-      helperText={errors.weight ?? (compact ? null : 'Gross weight, load included')}
+      helperText={errors.weight ?? null}
       fullWidth
       slotProps={{
         htmlInput: { inputMode: 'numeric' },
@@ -106,6 +163,41 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
       }}
       sx={compact ? { flex: 1 } : undefined}
     />
+  )
+
+  // Where the brief's load rules start: strong wind is worse above these weights.
+  const marks = [
+    { value: 30_000, label: '30k' },
+    { value: 40_000, label: '40k' },
+  ]
+  const typed = parseWeight(draft.weightText) ?? DEFAULT_WEIGHT_LB
+  const weightSlider = (
+    <Collapse in={weightOpen} unmountOnExit>
+      <Box
+        ref={keepWeightOpen}
+        onBlur={closeUnlessStillOnWeight}
+        sx={{ px: 1, pt: compact ? 0.5 : 0 }}
+      >
+        <Slider
+          aria-label="Truck weight in pounds"
+          size={compact ? 'small' : 'medium'}
+          min={SLIDER_MIN_LB}
+          max={SLIDER_MAX_LB}
+          step={1_000}
+          marks={marks}
+          value={Math.min(Math.max(typed, SLIDER_MIN_LB), SLIDER_MAX_LB)}
+          onChange={(_event, value) => update('weightText', String(value))}
+          valueLabelDisplay="auto"
+          valueLabelFormat={(value) => `${value.toLocaleString('en-US')} lb`}
+          sx={{ mt: compact ? 0 : 1, '& .MuiSlider-markLabel': { fontSize: '0.7rem' } }}
+        />
+        {compact ? null : (
+          <Typography variant="caption" color="text.secondary" component="p" sx={{ mt: 1.5 }}>
+            Gross weight, load included. Over 30k and 40k lb, strong wind is more dangerous.
+          </Typography>
+        )}
+      </Box>
+    </Collapse>
   )
 
   const leaveAt = (
@@ -183,6 +275,7 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
             {weight}
             {leaveAt}
           </Stack>
+          {weightSlider}
           <SpacingPicker
             compact
             value={draft.spacing}
@@ -191,7 +284,10 @@ function TripForm({ loading, onSubmit, onChange, compact = false }: TripFormProp
         </Stack>
       ) : (
         <Stack spacing={2.5} sx={{ mt: 2.5 }}>
-          {weight}
+          <Box>
+            {weight}
+            {weightSlider}
+          </Box>
           {leaveAt}
           <SpacingPicker value={draft.spacing} onChange={(spacing) => update('spacing', spacing)} />
         </Stack>

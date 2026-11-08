@@ -57,7 +57,9 @@ async function pickTrip(weight = '36000') {
   await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
   await userEvent.type(screen.getByLabelText('To'), 'Chic')
   await userEvent.click(await screen.findByText('Chicago, Illinois, United States'))
-  if (weight) await userEvent.type(screen.getByLabelText('Truck weight'), weight)
+  const field = screen.getByLabelText('Truck weight')
+  await userEvent.clear(field)
+  if (weight) await userEvent.type(field, weight)
 }
 
 function planCall() {
@@ -73,6 +75,7 @@ describe('TripPlanner', () => {
     expect(screen.getByRole('button', { name: 'Find routes' })).toBeDisabled()
     await pickTrip('')
     expect(screen.getByRole('button', { name: 'Find routes' })).toBeDisabled()
+    await userEvent.clear(screen.getByLabelText('Truck weight'))
     await userEvent.type(screen.getByLabelText('Truck weight'), '36000')
     expect(screen.getByRole('button', { name: 'Find routes' })).toBeEnabled()
   })
@@ -80,6 +83,7 @@ describe('TripPlanner', () => {
   it.each(['0', '250000', 'heavy'])('rejects a weight of %s', async (weight) => {
     renderWithTheme(<TripPlanner />)
 
+    await userEvent.clear(screen.getByLabelText('Truck weight'))
     await userEvent.type(screen.getByLabelText('Truck weight'), weight)
 
     expect(screen.getByText('Enter a weight up to 200,000 lb')).toBeInTheDocument()
@@ -152,6 +156,7 @@ describe('TripPlanner', () => {
     await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
     await userEvent.type(screen.getByLabelText('To'), 'Denv')
     await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
+    await userEvent.clear(screen.getByLabelText('Truck weight'))
     await userEvent.type(screen.getByLabelText('Truck weight'), '36000')
 
     expect(screen.getByText('Pick a destination different from the start')).toBeInTheDocument()
@@ -308,6 +313,8 @@ describe('recent searches', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
     await screen.findByText('1 route found, safest first')
     first.unmount()
+    // Come back to the plain page, not the trip's own link.
+    window.history.replaceState(null, '', '/')
   }
 
   it('offers a recent trip that fills in both ends', async () => {
@@ -360,5 +367,107 @@ describe('last trip', () => {
 
     expect(screen.getByRole('button', { name: 'Austin → Dallas' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Denver → Chicago' })).not.toBeInTheDocument()
+  })
+})
+
+describe('truck weight', () => {
+  it('starts at a typical loaded truck, so only the places are needed', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    expect(screen.getByLabelText('Truck weight')).toHaveValue('65000')
+    await userEvent.type(screen.getByLabelText('From'), 'Denv')
+    await userEvent.click(await screen.findByText('Denver, Colorado, United States'))
+    await userEvent.type(screen.getByLabelText('To'), 'Chic')
+    await userEvent.click(await screen.findByText('Chicago, Illinois, United States'))
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+
+    await screen.findByText('1 route found, safest first')
+    expect(planCall().weight_lb).toBe(65000)
+  })
+
+  it('shows the slider only while the weight is being set', async () => {
+    renderWithTheme(<TripPlanner />)
+    const slider = () => screen.queryByRole('slider', { name: 'Truck weight in pounds' })
+
+    expect(slider()).toBeNull()
+    await userEvent.click(screen.getByLabelText('Truck weight'))
+    expect(slider()).toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText('Leave at'))
+    await vi.waitFor(() => expect(slider()).toBeNull())
+  })
+
+  it('moves with the slider, and the slider follows what is typed', async () => {
+    renderWithTheme(<TripPlanner />)
+    await userEvent.click(screen.getByLabelText('Truck weight'))
+    const slider = screen.getByRole('slider', { name: 'Truck weight in pounds' })
+
+    fireEvent.change(slider, { target: { value: 42000 } })
+    expect(screen.getByLabelText('Truck weight')).toHaveValue('42000')
+
+    await userEvent.clear(screen.getByLabelText('Truck weight'))
+    await userEvent.type(screen.getByLabelText('Truck weight'), '30000')
+    expect(slider).toHaveValue('30000')
+  })
+
+  it('keeps the slider at its end for heavier trucks that are typed in', async () => {
+    renderWithTheme(<TripPlanner />)
+    await userEvent.click(screen.getByLabelText('Truck weight'))
+
+    await userEvent.clear(screen.getByLabelText('Truck weight'))
+    await userEvent.type(screen.getByLabelText('Truck weight'), '120000')
+
+    expect(screen.getByRole('slider', { name: 'Truck weight in pounds' })).toHaveValue('80000')
+  })
+})
+
+describe('shareable links', () => {
+  it('puts the planned trip in the page address', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip('42000')
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+    await screen.findByText('1 route found, safest first')
+
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('fromName')).toBe('Denver, Colorado, United States')
+    expect(params.get('to')).toBe('41.88000,-87.63000')
+    expect(params.get('w')).toBe('42000')
+    expect(params.get('every')).toBe('25')
+  })
+
+  it('opens a link straight onto the planned trip', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    window.history.replaceState(
+      null,
+      '',
+      '/?from=39.74,-104.98&fromName=Denver%2C+Colorado&to=41.88,-87.63&toName=Chicago%2C+Illinois&w=30000&every=10',
+    )
+
+    renderWithTheme(<TripPlanner />)
+
+    expect(await screen.findByText('1 route found, safest first')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Denver → Chicago' })).toBeInTheDocument()
+    expect(planCall()).toMatchObject({
+      origin: { latitude: 39.74, longitude: -104.98 },
+      weight_lb: 30000,
+      spacing_miles: 10,
+    })
+  })
+
+  it('copies the link', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.click(screen.getByRole('button', { name: 'Find routes' }))
+    await screen.findByText('1 route found, safest first')
+    await userEvent.click(screen.getByRole('button', { name: 'Copy link to this trip' }))
+
+    expect(writeText).toHaveBeenCalledWith(window.location.href)
+    expect(await screen.findByText('Link copied')).toBeInTheDocument()
   })
 })

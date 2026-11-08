@@ -62,6 +62,22 @@ describe('RouteOptions', () => {
   })
 })
 
+describe('RouteOptions checkpoints strip', () => {
+  it('opens and closes the list from anywhere on the strip', async () => {
+    renderWithTheme(
+      <RouteOptions plan={tripPlan([stormy])} selectedId="route-2" onSelect={() => {}} />,
+    )
+    const strip = screen.getByRole('button', { name: '3 checkpoints' })
+
+    expect(strip).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(strip)
+    expect(strip).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Checkpoint 1')).toBeInTheDocument()
+    await userEvent.click(strip)
+    expect(strip).toHaveAttribute('aria-expanded', 'false')
+  })
+})
+
 describe('RouteOptions summary', () => {
   it('shows a risk strip and the arrival time for each route', () => {
     renderWithTheme(
