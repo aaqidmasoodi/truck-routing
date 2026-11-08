@@ -154,11 +154,17 @@ hour from it (`frontend/src/timeline.ts`).
 
 ## The map
 
+The page is laid out like a map app. On a laptop or desktop the planner is a panel on the
+left that scrolls on its own, and the map fills the rest of the window. On a phone the map
+is pinned to the top of the screen and the planner scrolls underneath it, so the routes
+stay in view while you read the results.
+
 Routes are drawn with [Leaflet](https://leafletjs.com) on CARTO's light basemap
 (`frontend/src/components/RouteMap.tsx`). Every option is on the map; the selected one is
 bold and drawn on top, and it starts as the recommended route. Clicking a line or a route
-card selects it in both places. The map zooms to fit the routes for each new plan, and its
-code only loads once there are results, so the first page load stays small.
+card selects it in both places. The map zooms to fit the routes for each new plan. Leaflet,
+MUI and React are each built into their own chunk, so a change to the app doesn't make
+browsers download the libraries again.
 
 The selected route's checkpoints are dots in their risk colour (grey when there's no
 forecast for that time), with a key in the corner. Clicking one shows when the truck gets
