@@ -4,7 +4,7 @@ import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { TripPlan } from '../api/client'
 import { formatArrival, formatDuration, formatMiles } from '../format'
-import { arrival, routeName, timeCost, worstRisk } from '../routes'
+import { arrival, milesAt, routeName, timeCost, worstRisk } from '../routes'
 import RiskChip from './RiskChip'
 
 /** The answer to "which way should I go?", in a sentence or two. */
@@ -40,21 +40,24 @@ function RecommendationCard({ plan }: { plan: TripPlan }) {
             ? `${plan.reason}.`
             : 'Every route has weather too bad to drive in. Try leaving later.'}
         </Typography>
+        <Typography variant="body2">
+          {formatMiles(best.distance_miles)} · {formatDuration(best.duration_minutes)}
+          {arriving
+            ? ` · arrives ${formatArrival(arriving, best.checkpoints[0]?.eta ?? arriving)}`
+            : ''}
+        </Typography>
+        {/* Its own line, label and chip together, so the chip never reads as an instruction. */}
         <Stack
           direction="row"
           spacing={1}
-          sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}
+          aria-label="Worst conditions"
+          sx={{ alignItems: 'center', mt: 1, flexWrap: 'nowrap' }}
         >
-          <Typography variant="body2">
-            {formatMiles(best.distance_miles)} · {formatDuration(best.duration_minutes)}
-            {arriving
-              ? ` · arrives ${formatArrival(arriving, best.checkpoints[0]?.eta ?? arriving)}`
-              : ''}
-          </Typography>
-          <Typography variant="body2" sx={{ pl: 1 }}>
-            Worst conditions:
-          </Typography>
+          <Typography variant="body2">Worst conditions:</Typography>
           <RiskChip level={worst} />
+          {worst && worst.value > 0 ? (
+            <Typography variant="body2">for {formatMiles(milesAt(best, worst.value))}</Typography>
+          ) : null}
         </Stack>
         {cost ? (
           <Typography variant="body2" sx={{ mt: 1 }}>

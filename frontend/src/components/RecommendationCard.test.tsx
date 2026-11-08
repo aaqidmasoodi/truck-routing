@@ -49,3 +49,29 @@ describe('RecommendationCard', () => {
     expect(card).toHaveTextContent('Least risky is Route 1')
   })
 })
+
+describe('RecommendationCard worst conditions', () => {
+  it('keeps the label and its level together on one line', () => {
+    renderWithTheme(<RecommendationCard plan={tripPlan([plannedRoute('route-1')])} />)
+
+    const row = screen.getByLabelText('Worst conditions')
+    expect(row).toHaveTextContent('Worst conditions:Clear')
+    expect(row).toHaveStyle({ flexWrap: 'nowrap' })
+  })
+
+  it('says how many miles have the worst conditions', () => {
+    const stormy = plannedRoute('route-1', {
+      checkpoints: [
+        checkpoint(0, '2026-11-09T08:00:00Z'),
+        checkpoint(10, '2026-11-09T08:15:00Z', SEVERE),
+        checkpoint(20, '2026-11-09T08:30:00Z', SEVERE),
+        checkpoint(30, '2026-11-09T08:45:00Z'),
+      ],
+    })
+    renderWithTheme(<RecommendationCard plan={tripPlan([stormy])} />)
+
+    expect(screen.getByLabelText('Worst conditions')).toHaveTextContent(
+      'Worst conditions:Dangerousfor 20 mi',
+    )
+  })
+})

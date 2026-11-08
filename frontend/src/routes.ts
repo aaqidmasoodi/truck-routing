@@ -59,3 +59,10 @@ export function timeCost(plan: TripPlan): string | null {
   if (extra < 1) return null
   return `${formatDuration(extra)} longer than ${routeName(fastest)}, the fastest`
 }
+
+/** Miles of the route at one level, from each checkpoint's share of the road. */
+export function milesAt(route: PlannedRoute, level: number): number {
+  return route.checkpoints
+    .filter((checkpoint) => checkpoint.risk?.level.value === level)
+    .reduce((sum, checkpoint) => sum + checkpoint.segment_miles, 0)
+}
