@@ -1,12 +1,15 @@
 import Alert from '@mui/material/Alert'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import Box from '@mui/material/Box'
+import Skeleton from '@mui/material/Skeleton'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import type { TripPlan } from '../api/client'
 import { routeName } from '../routes'
-import RouteMap from './RouteMap'
 import RouteOptions from './RouteOptions'
+
+// Leaflet is the biggest dependency, so it only loads once there's something to map.
+const RouteMap = lazy(() => import('./RouteMap'))
 
 function PlanResults({ plan }: { plan: TripPlan }) {
   // A new plan starts on its recommended route; a click picks another.
@@ -42,7 +45,16 @@ function PlanResults({ plan }: { plan: TripPlan }) {
             width: '100%',
           }}
         >
-          <RouteMap routes={plan.routes} selectedId={selectedId} onSelect={select} />
+          <Suspense
+            fallback={
+              <Skeleton
+                variant="rounded"
+                sx={{ height: { xs: 320, md: 440 }, borderRadius: '16px' }}
+              />
+            }
+          >
+            <RouteMap routes={plan.routes} selectedId={selectedId} onSelect={select} />
+          </Suspense>
         </Box>
         <Box sx={{ flex: 5, minWidth: 0 }}>
           <Typography variant="subtitle1" component="h3" sx={{ mb: 1.5 }}>
