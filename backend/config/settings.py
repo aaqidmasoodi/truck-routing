@@ -169,6 +169,9 @@ WEATHER_URL = os.environ.get("WEATHER_URL", "https://api.open-meteo.com/v1/forec
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Nothing here belongs to a user, so the API is open and has no logins.
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
 }
 
 SPECTACULAR_SETTINGS = {
