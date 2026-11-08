@@ -131,3 +131,12 @@ describe('RouteMap heatmap', () => {
     expect(screen.getByRole('img', { name: 'wind scale' })).toHaveTextContent('55+ mph')
   })
 })
+
+describe('RouteMap before a plan', () => {
+  it('invites the driver to plan a trip', () => {
+    renderWithTheme(<RouteMap routes={[]} selectedId="" onSelect={() => {}} />)
+
+    expect(screen.getByText('Plan a trip to see the routes here')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Colour the route by' })).not.toBeInTheDocument()
+  })
+})

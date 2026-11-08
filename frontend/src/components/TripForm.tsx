@@ -6,7 +6,7 @@ import InputAdornment from '@mui/material/InputAdornment'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
+import SwapVertIcon from '@mui/icons-material/SwapVert'
 import type { Trip } from '../api/client'
 import { checkDraft, emptyDraft, latestDeparture, toLocalInput, type TripDraft } from '../tripDraft'
 import PlaceSearch from './PlaceSearch'
@@ -48,38 +48,32 @@ function TripForm({ loading, onSubmit, onChange }: TripFormProps) {
 
   return (
     <Box component="form" onSubmit={submit} noValidate>
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={1}
-        sx={{ alignItems: { md: 'flex-start' } }}
-      >
-        <Box sx={{ flex: 1 }}>
+      {/* Start above destination with a swap button beside them, like a map app. */}
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Stack spacing={2} sx={{ flex: 1, minWidth: 0 }}>
           <PlaceSearch
             label="From"
             value={draft.origin}
             onChange={(place) => update('origin', place)}
           />
-        </Box>
-        <Tooltip title="Swap start and destination">
-          <span>
-            <IconButton
-              aria-label="Swap start and destination"
-              onClick={swap}
-              disabled={!draft.origin && !draft.destination}
-              sx={{ mt: { md: 1 }, transform: { xs: 'rotate(90deg)', md: 'none' } }}
-            >
-              <SwapHorizIcon />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Box sx={{ flex: 1 }}>
           <PlaceSearch
             label="To"
             value={draft.destination}
             onChange={(place) => update('destination', place)}
             error={errors.destination}
           />
-        </Box>
+        </Stack>
+        <Tooltip title="Swap start and destination">
+          <span>
+            <IconButton
+              aria-label="Swap start and destination"
+              onClick={swap}
+              disabled={!draft.origin && !draft.destination}
+            >
+              <SwapVertIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
       </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 1 }}>
         <TextField

@@ -9,6 +9,20 @@ export default defineConfig({
       '/api': 'http://localhost:8000',
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Keep the libraries apart from our code, so a change to the app doesn't make
+        // browsers download MUI and React again.
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'mui', test: /node_modules[\\/](@mui|@emotion|@material)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],

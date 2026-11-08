@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
 import 'leaflet/dist/leaflet.css'
-import { CircleMarker, MapContainer, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import {
+  CircleMarker,
+  MapContainer,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+  ZoomControl,
+} from 'react-leaflet'
 import Box from '@mui/material/Box'
+import Chip from '@mui/material/Chip'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useTheme } from '@mui/material/styles'
@@ -12,6 +21,9 @@ import { routeName } from '../routes'
 import CheckpointMarkers from './CheckpointMarkers'
 import HeatBand from './HeatBand'
 import RiskLegend from './RiskLegend'
+
+// Before any plan: the North Atlantic, with North America and Europe both in view.
+const WORLD_VIEW = { center: [42, -40] as LatLng, zoom: 3 }
 
 interface RouteMapProps {
   routes: PlannedRoute[]
@@ -44,11 +56,8 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
     <Box
       sx={{
         position: 'relative',
-        height: { xs: 320, md: 440 },
-        borderRadius: '16px',
+        height: '100%',
         overflow: 'hidden',
-        border: 1,
-        borderColor: 'm3.outlineVariant',
         // Leaflet's own controls and popups, nudged towards Material 3.
         '& .leaflet-bar a': { color: 'm3.onSurface' },
         '& .leaflet-popup-content-wrapper, & .leaflet-popup-tip': {
@@ -61,11 +70,12 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
       }}
     >
       <MapContainer
-        center={start ? [start[0] ?? 0, start[1] ?? 0] : [39.8, -98.6]}
-        zoom={5}
-        scrollWheelZoom={false}
+        center={start ? [start[0] ?? 0, start[1] ?? 0] : WORLD_VIEW.center}
+        zoom={start ? 6 : WORLD_VIEW.zoom}
+        zoomControl={false}
         style={{ height: '100%', width: '100%' }}
       >
+        <ZoomControl position="bottomright" />
         <TileLayer url={TILES.url} attribution={TILES.attribution} />
         {selected ? <HeatBand route={selected} layer={layer} /> : null}
         {drawOrder(routes, selectedId).map((route) => {
@@ -105,27 +115,44 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         ) : null}
         {bounds ? <FitToRoutes bounds={bounds} /> : null}
       </MapContainer>
-      <ToggleButtonGroup
-        size="small"
-        exclusive
-        value={layer}
-        onChange={(_event, value: HeatLayer | null) => value && setLayer(value)}
-        aria-label="Colour the route by"
-        sx={{
-          position: 'absolute',
-          top: 12,
-          right: 12,
-          zIndex: 1000, // above Leaflet's panes
-          bgcolor: 'm3.surfaceContainer',
-          boxShadow: 1,
-        }}
-      >
-        <ToggleButton value="risk">Risk</ToggleButton>
-        <ToggleButton value="wind">Wind</ToggleButton>
-        <ToggleButton value="rain">Rain</ToggleButton>
-        <ToggleButton value="snow">Snow</ToggleButton>
-      </ToggleButtonGroup>
-      <RiskLegend layer={layer} />
+      {routes.length > 0 ? (
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={layer}
+          onChange={(_event, value: HeatLayer | null) => value && setLayer(value)}
+          aria-label="Colour the route by"
+          sx={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            zIndex: 1000, // above Leaflet's panes
+            bgcolor: 'm3.surfaceContainer',
+            boxShadow: 1,
+          }}
+        >
+          <ToggleButton value="risk">Risk</ToggleButton>
+          <ToggleButton value="wind">Wind</ToggleButton>
+          <ToggleButton value="rain">Rain</ToggleButton>
+          <ToggleButton value="snow">Snow</ToggleButton>
+        </ToggleButtonGroup>
+      ) : null}
+      {routes.length > 0 ? (
+        <RiskLegend layer={layer} />
+      ) : (
+        <Chip
+          label="Plan a trip to see the routes here"
+          sx={{
+            position: 'absolute',
+            left: '50%',
+            bottom: 32,
+            transform: 'translateX(-50%)',
+            zIndex: 1000, // above Leaflet's panes
+            bgcolor: 'm3.surfaceContainerHigh',
+            boxShadow: 2,
+          }}
+        />
+      )}
     </Box>
   )
 }

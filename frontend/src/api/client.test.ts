@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { planTrip, searchPlaces } from './client'
+import { ApiError, planTrip, retrying, searchPlaces } from './client'
 
 describe('searchPlaces', () => {
   it('asks the API for places matching the query', async () => {
@@ -63,5 +63,42 @@ describe('planTrip departure', () => {
 
     const [, init] = fetch.mock.calls[0] ?? []
     expect(JSON.parse(String(init?.body))).not.toHaveProperty('departure')
+  })
+})
+
+describe('retrying', () => {
+  const quick = { waitMs: 0 }
+
+  it('tries again when the server is briefly unavailable', async () => {
+    const attempt = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new ApiError(502, 'down'))
+      .mockResolvedValueOnce('ok')
+
+    await expect(retrying(attempt, quick)).resolves.toBe('ok')
+    expect(attempt).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up after three tries', async () => {
+    const attempt = vi.fn<() => Promise<string>>().mockRejectedValue(new ApiError(502, 'down'))
+
+    await expect(retrying(attempt, quick)).rejects.toThrow('down')
+    expect(attempt).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not retry answers that will not change, like no route', async () => {
+    const attempt = vi.fn<() => Promise<string>>().mockRejectedValue(new ApiError(404, 'no road'))
+
+    await expect(retrying(attempt, quick)).rejects.toThrow('no road')
+    expect(attempt).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries when the network itself fails', async () => {
+    const attempt = vi
+      .fn<() => Promise<string>>()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce('ok')
+
+    await expect(retrying(attempt, quick)).resolves.toBe('ok')
   })
 })
