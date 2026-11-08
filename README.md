@@ -162,6 +162,24 @@ Open http://localhost:5173. Requests to `/api` are proxied to the backend on por
 - Frontend: debug logs show in the browser console during `npm run dev`. For a production
   build, set `VITE_DEBUG=true` to keep them.
 
+## API docs and types
+
+With the backend running, the interactive docs are at http://localhost:8000/api/docs/ and
+the raw OpenAPI schema at `/api/schema/`. The schema is also committed as
+`backend/openapi.yaml`, and the frontend's API types in `frontend/src/api/schema.ts` are
+generated from it, so the two sides can't drift apart quietly.
+
+After changing an endpoint or serializer:
+
+```bash
+cd backend && python manage.py spectacular --file openapi.yaml
+cd ../frontend && npm run gen:api
+```
+
+A backend test fails if `openapi.yaml` is out of date, and CI fails if the generated types
+are. The generator runs with its own copy of TypeScript 5, since TypeScript 7 doesn't have
+the compiler API it needs.
+
 ## Checks
 
 Backend:
