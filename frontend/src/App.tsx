@@ -12,16 +12,28 @@ import { debug } from './debug'
 
 type ApiState = 'checking' | 'online' | 'offline'
 
+// Often enough to notice the backend coming back without anyone refreshing the page.
+const RECHECK_MS = 30_000
+
 function App() {
   const [api, setApi] = useState<ApiState>('checking')
 
   useEffect(() => {
-    getHealth()
-      .then(() => setApi('online'))
-      .catch((error: unknown) => {
-        debug('app', 'health check failed', error)
-        setApi('offline')
-      })
+    const check = () =>
+      getHealth()
+        .then(() => setApi('online'))
+        .catch((error: unknown) => {
+          debug('app', 'health check failed', error)
+          setApi('offline')
+        })
+
+    check()
+    const timer = setInterval(check, RECHECK_MS)
+    window.addEventListener('focus', check)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('focus', check)
+    }
   }, [])
 
   return (

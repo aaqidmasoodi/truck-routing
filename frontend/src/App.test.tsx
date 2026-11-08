@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 
@@ -10,6 +10,23 @@ describe('App', () => {
 
     expect(screen.getByText('Weather-Aware Truck Routing')).toBeInTheDocument()
     expect(await screen.findByText('API online')).toBeInTheDocument()
+  })
+
+  it('checks again when the window regains focus', async () => {
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValue(Response.json({ status: 'ok' }))
+
+    render(<App />)
+    expect(await screen.findByText('API offline')).toBeInTheDocument()
+
+    act(() => {
+      fireEvent.focus(window)
+    })
+
+    expect(await screen.findByText('API online')).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
 
   it('has start and destination fields', () => {
