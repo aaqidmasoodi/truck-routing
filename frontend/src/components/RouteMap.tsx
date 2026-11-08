@@ -7,6 +7,7 @@ import type { PlannedRoute } from '../api/client'
 import { boundsOf, drawOrder, lineStyle, TILES, type LatLng } from '../map'
 import { routeName } from '../routes'
 import CheckpointMarkers from './CheckpointMarkers'
+import RiskLegend from './RiskLegend'
 
 interface RouteMapProps {
   routes: PlannedRoute[]
@@ -37,6 +38,7 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
   return (
     <Box
       sx={{
+        position: 'relative',
         height: { xs: 320, md: 440 },
         borderRadius: '16px',
         overflow: 'hidden',
@@ -90,6 +92,7 @@ function RouteMap({ routes, selectedId, onSelect }: RouteMapProps) {
         ) : null}
         {bounds ? <FitToRoutes bounds={bounds} /> : null}
       </MapContainer>
+      <RiskLegend />
     </Box>
   )
 }

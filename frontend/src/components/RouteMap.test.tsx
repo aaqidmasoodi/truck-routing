@@ -90,3 +90,12 @@ describe('RouteMap', () => {
     expect(screen.getByText('Severe because of wind')).toBeInTheDocument()
   })
 })
+
+describe('RouteMap legend', () => {
+  it('explains the checkpoint colours', () => {
+    renderWithTheme(<RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />)
+
+    const legend = screen.getByRole('list', { name: 'Risk levels' })
+    expect(legend).toHaveTextContent('LowModerateHighSevereNo Travel')
+  })
+})
