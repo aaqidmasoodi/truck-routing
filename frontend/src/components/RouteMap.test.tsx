@@ -248,3 +248,37 @@ describe('RouteMap trip ends', () => {
     expect(container.querySelector('.trip-end-marker')).toBeNull()
   })
 })
+
+describe('RouteMap warning markers', () => {
+  it('sits in the middle of its stretch, not on the destination pin', () => {
+    const endsBadly = plannedRoute('route-1', {
+      points: routes[0]!.points,
+      checkpoints: [
+        { ...checkpoint(0, '2026-11-09T08:00:00Z'), latitude: 53.35, longitude: -6.26 },
+        { ...checkpoint(60, '2026-11-09T09:10:00Z'), latitude: 53.3, longitude: -7.6 },
+        {
+          ...checkpoint(130, '2026-11-09T10:30:00Z', SEVERE),
+          latitude: 53.27,
+          longitude: -9.06,
+          risk: windy,
+          weather: { wind_mph: 48, rain_in_per_hr: 0, snow_in_per_hr: 0 },
+        },
+      ],
+    })
+    const { container } = renderWithTheme(
+      <RouteMap
+        routes={[endsBadly]}
+        places={{ start: 'Dublin', end: 'Galway' }}
+        selectedId="route-1"
+        onSelect={() => {}}
+      />,
+    )
+
+    const warning = container.querySelector('.trouble-marker') as HTMLElement
+    const destination = container.querySelector('[title="Destination: Galway"]') as HTMLElement
+    const at = (el: HTMLElement) => `${el.style.left}|${el.style.top}|${el.style.transform}`
+    expect(warning).not.toBeNull()
+    expect(at(warning)).not.toBe('||')
+    expect(at(warning)).not.toBe(at(destination))
+  })
+})
