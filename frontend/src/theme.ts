@@ -1,14 +1,31 @@
 import { createTheme } from '@mui/material/styles'
 import { buildColorScheme, type ColorScheme } from './colorScheme'
 
+interface RiskColor {
+  main: string
+  contrastText: string
+}
+
 declare module '@mui/material/styles' {
   interface Palette {
     m3: ColorScheme
+    risk: RiskColor[]
   }
   interface PaletteOptions {
     m3?: ColorScheme
+    risk?: RiskColor[]
   }
 }
+
+// Low to No Travel. Traffic-light colours drivers already read without a legend,
+// each with a text colour that passes contrast on top of it.
+const risk: RiskColor[] = [
+  { main: '#2e7d32', contrastText: '#ffffff' },
+  { main: '#f9a825', contrastText: '#1b1b1f' },
+  { main: '#ef6c00', contrastText: '#1b1b1f' },
+  { main: '#c62828', contrastText: '#ffffff' },
+  { main: '#4a148c', contrastText: '#ffffff' },
+]
 
 const SEED = '#0b57d0'
 const m3 = buildColorScheme(SEED)
@@ -17,6 +34,7 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     m3,
+    risk,
     primary: { main: m3.primary, contrastText: m3.onPrimary },
     secondary: { main: m3.secondary, contrastText: m3.onSecondary },
     error: { main: m3.error, contrastText: m3.onError },

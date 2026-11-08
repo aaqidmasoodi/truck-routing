@@ -6,19 +6,16 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .checkpoints import ScheduledCheckpoint, checkpoints_for_route
 from .clients.geocoding import GeocodingError, search_places
-from .clients.routing import NoRouteFound, RoutingError, find_routes
-from .clients.weather import WeatherError, fetch_forecasts
+from .clients.routing import NoRouteFound, RoutingError
+from .planner import plan_trip
 from .risk import Conditions, RiskLevel, checkpoint_risk
 from .serializers import (
     CheckpointRiskInput,
-    CheckpointSerializer,
     PlaceQuery,
     PlaceSerializer,
-    RouteRequest,
-    RouteSerializer,
-    WeatherSerializer,
+    PlanRequest,
+    TripPlanSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,18 +79,21 @@ def places(request: Request) -> Response:
 
 
 @api_view(["POST"])
-def routes(request: Request) -> Response:
-    form = RouteRequest(data=request.data)
+def plan(request: Request) -> Response:
+    """Route options for a truck trip, ranked safest first with the weather on the way."""
+    form = PlanRequest(data=request.data)
     if not form.is_valid():
-        logger.info("rejected route request: %s", form.errors)
+        logger.info("rejected plan request: %s", form.errors)
         return Response(form.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    origin = form.validated_data["origin"]
-    destination = form.validated_data["destination"]
+    data = form.validated_data
     try:
-        found = find_routes(
-            (origin["latitude"], origin["longitude"]),
-            (destination["latitude"], destination["longitude"]),
+        trip = plan_trip(
+            origin=(data["origin"]["latitude"], data["origin"]["longitude"]),
+            destination=(data["destination"]["latitude"], data["destination"]["longitude"]),
+            weight_lb=data["weight_lb"],
+            spacing_miles=data["spacing_miles"],
+            departure=data.get("departure") or timezone.now(),
         )
     except NoRouteFound:
         return Response(
@@ -105,33 +105,4 @@ def routes(request: Request) -> Response:
             {"detail": "Route planning is unavailable right now. Try again in a moment."},
             status=status.HTTP_502_BAD_GATEWAY,
         )
-    spacing = form.validated_data["spacing_miles"]
-    departure = form.validated_data.get("departure") or timezone.now()
-    per_route = [checkpoints_for_route(route, spacing, departure) for route in found]
-    everywhere = [checkpoint for checkpoints in per_route for checkpoint in checkpoints]
-    weather = iter(_weather_at(everywhere))
-
-    body = []
-    for route, checkpoints in zip(found, per_route, strict=True):
-        rows = CheckpointSerializer(checkpoints, many=True).data
-        for row in rows:
-            conditions = next(weather)
-            row["weather"] = WeatherSerializer(conditions).data if conditions else None
-        body.append({**RouteSerializer(route).data, "checkpoints": rows})
-    return Response(body)
-
-
-def _weather_at(checkpoints: list[ScheduledCheckpoint]) -> list[Conditions | None]:
-    """The forecast at each checkpoint's arrival time, in the same order.
-
-    If the forecast service is down the routes are still worth showing, so every
-    checkpoint just gets unknown weather.
-    """
-    try:
-        forecasts = fetch_forecasts([(c.latitude, c.longitude) for c in checkpoints])
-    except WeatherError:
-        return [None] * len(checkpoints)
-    return [
-        forecast.at(checkpoint.eta)
-        for checkpoint, forecast in zip(checkpoints, forecasts, strict=True)
-    ]
+    return Response(TripPlanSerializer(trip).data)

@@ -44,19 +44,10 @@ Location data is based on [GeoNames](https://www.geonames.org).
 
 ## Finding routes
 
-`POST /api/routes/` takes a start and destination and returns up to three driving routes
-from [OSRM](https://project-osrm.org), each with its distance, drive time and the points
-along the road. OSRM sends the shape as an encoded polyline, which `backend/routing/polyline.py`
+Up to three driving routes come from [OSRM](https://project-osrm.org), each with its
+distance, drive time and the points along the road. OSRM sends the shape as an encoded polyline, which `backend/routing/polyline.py`
 decodes. Results are cached for an hour. It asks the OpenStreetMap-hosted OSRM server first
 and falls back to the OSRM project's demo server, since both are free and best effort.
-
-```bash
-curl -X POST localhost:8000/api/routes/ -H "Content-Type: application/json" \
-  -d '{"origin": {"latitude": 39.74, "longitude": -104.98},
-       "destination": {"latitude": 41.88, "longitude": -87.63}}'
-```
-
-If there's no road between the two places the API answers 404, and if OSRM is down, 502.
 
 Two things to know:
 
@@ -97,6 +88,35 @@ the truck is due there, not the weather right now.
   timestamp, so a truck due at 14:20 gets the 14:00 to 15:00 hour. Wind is a snapshot, so it
   uses the nearest hour. Units come back as mm and cm and are converted to inches here.
 - If Open-Meteo is down, routes still come back and the weather shows as unknown.
+
+## Planning a trip
+
+`POST /api/plan/` does the whole job (`backend/routing/planner.py`): it finds the route
+options, places checkpoints, looks up the forecast for every checkpoint on every route in
+one go, works out each checkpoint's risk for the truck's weight, and ranks the routes.
+
+```bash
+curl -X POST localhost:8000/api/plan/ -H "Content-Type: application/json" \
+  -d '{"origin": {"latitude": 39.74, "longitude": -104.98},
+       "destination": {"latitude": 41.88, "longitude": -87.63},
+       "weight_lb": 36000, "spacing_miles": 25}'
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `origin`, `destination` | yes | `{"latitude": ..., "longitude": ...}` |
+| `weight_lb` | yes | Gross weight, 1 to 200,000 lb |
+| `spacing_miles` | no | 10, 25 (default) or 50 |
+| `departure` | no | ISO date-time within the next 48 hours, now by default |
+
+The answer lists the routes safest first, with `recommended_route_id`, a plain `reason`
+("12 fewer miles of Severe weather"), and `safe_to_travel`, which is false when even the
+best route runs into No Travel weather. Every checkpoint carries its arrival time, the
+forecast, and its risk level with the conditions that caused it. Miles with no forecast
+(past the forecast window, or Open-Meteo down) are reported as `unknown_weather_miles` and
+count as Low, so the ranking falls back to drive time instead of failing.
+
+No road between the places gives a 404, and the routing service being down gives a 502.
 
 ## How routes are ranked
 

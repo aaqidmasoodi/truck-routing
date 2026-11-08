@@ -108,10 +108,17 @@ def test_any_no_travel_miles_rank_below_severe_miles() -> None:
             RouteScore("b", 0, 0, 0, 60, no_travel_miles=3),
             "Avoids 3 mi of No Travel weather",
         ),
+        (
+            RouteScore("a", 0, 0, 0, 60, no_travel_miles=5),
+            RouteScore("b", 0, 0, 0, 60, no_travel_miles=35),
+            "30 fewer miles of No Travel weather",
+        ),
         (make("a", severe=2), make("b", severe=14.5), "12.5 fewer miles of Severe weather"),
         (make("a", high=5), make("b", high=15), "10 fewer miles of High risk weather"),
         (make("a", avg=0.5), make("b", avg=1.25), "Lower average risk (0.50 vs 1.25)"),
         (make("a", minutes=50), make("b", minutes=65), "15 min faster"),
+        (make("a", minutes=150), make("b", minutes=152.7), "3 min faster"),
+        (make("a", minutes=150), make("b", minutes=150.2), "1 min faster"),
         (make("a"), make("b"), "Same risk and time"),
     ],
 )

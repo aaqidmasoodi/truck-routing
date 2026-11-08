@@ -94,7 +94,10 @@ def _number(value: float) -> str:
 def why_ahead(best: RouteScore, other: RouteScore) -> str:
     """The first ranking rule that puts `best` ahead of `other`, in plain words."""
     if round(best.no_travel_miles, 2) < round(other.no_travel_miles, 2):
-        return f"Avoids {_number(other.no_travel_miles)} mi of No Travel weather"
+        if best.no_travel_miles == 0:
+            return f"Avoids {_number(other.no_travel_miles)} mi of No Travel weather"
+        fewer = other.no_travel_miles - best.no_travel_miles
+        return f"{_number(fewer)} fewer miles of No Travel weather"
     if round(best.severe_miles, 2) < round(other.severe_miles, 2):
         return f"{_number(other.severe_miles - best.severe_miles)} fewer miles of Severe weather"
     if round(best.high_miles, 2) < round(other.high_miles, 2):
@@ -102,5 +105,7 @@ def why_ahead(best: RouteScore, other: RouteScore) -> str:
     if round(best.average_risk, 4) < round(other.average_risk, 4):
         return f"Lower average risk ({best.average_risk:.2f} vs {other.average_risk:.2f})"
     if round(best.duration_minutes, 2) < round(other.duration_minutes, 2):
-        return f"{_number(other.duration_minutes - best.duration_minutes)} min faster"
+        # Nobody plans a drive to a tenth of a minute.
+        saved = max(1, round(other.duration_minutes - best.duration_minutes))
+        return f"{saved} min faster"
     return "Same risk and time"

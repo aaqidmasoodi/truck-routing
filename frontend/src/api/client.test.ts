@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { findRoutes, searchPlaces } from './client'
+import { planTrip, searchPlaces } from './client'
 
 describe('searchPlaces', () => {
   it('asks the API for places matching the query', async () => {
@@ -17,42 +17,24 @@ describe('searchPlaces', () => {
   })
 })
 
-describe('findRoutes', () => {
-  const denver = { latitude: 39.74, longitude: -104.98 }
-  const chicago = { latitude: 41.88, longitude: -87.63 }
+describe('planTrip', () => {
+  it('posts the trip in the shape the API expects', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({}))
 
-  it('posts the trip as JSON', async () => {
-    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json([]))
-
-    await findRoutes(denver, chicago)
+    await planTrip({
+      origin: { latitude: 53.35, longitude: -6.26 },
+      destination: { latitude: 53.27, longitude: -9.06 },
+      weightLb: 36000,
+      spacingMiles: 10,
+    })
 
     const [url, init] = fetch.mock.calls[0] ?? []
-    expect(url).toBe('/api/routes/')
-    expect(init?.method).toBe('POST')
+    expect(url).toBe('/api/plan/')
     expect(JSON.parse(String(init?.body))).toEqual({
-      origin: denver,
-      destination: chicago,
-      spacing_miles: 25,
-    })
-  })
-
-  it('sends the checkpoint spacing', async () => {
-    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json([]))
-
-    await findRoutes(denver, chicago, 10)
-
-    const [, init] = fetch.mock.calls[0] ?? []
-    expect(JSON.parse(String(init?.body)).spacing_miles).toBe(10)
-  })
-
-  it("uses the server's message when there's no route", async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({ detail: "There's no road route between these places." }, { status: 404 }),
-    )
-
-    await expect(findRoutes(denver, chicago)).rejects.toMatchObject({
-      status: 404,
-      message: "There's no road route between these places.",
+      origin: { latitude: 53.35, longitude: -6.26 },
+      destination: { latitude: 53.27, longitude: -9.06 },
+      weight_lb: 36000,
+      spacing_miles: 10,
     })
   })
 })
