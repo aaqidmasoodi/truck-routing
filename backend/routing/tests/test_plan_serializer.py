@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from routing.checkpoints import ScheduledCheckpoint
 from routing.clients.routing import Route
-from routing.planner import assess, plan_route, recommend
+from routing.planner import TripPlan, assess, plan_route, recommend
 from routing.risk import Conditions
 from routing.serializers import TripPlanSerializer
 
@@ -37,3 +37,23 @@ def test_plan_serializes_for_the_frontend() -> None:
     assert first["weather"]["rain_in_per_hr"] == 0.3
     assert second["risk"] is None
     assert second["weather"] is None
+
+
+def test_timeline_packs_each_checkpoint_into_a_short_row() -> None:
+    route = Route("route-1", distance_miles=10, duration_minutes=15, points=[(53.0, -7.0)])
+    checkpoints = [
+        ScheduledCheckpoint(53.0, -7.0, mile=0, segment_miles=5, eta=LEAVING),
+        ScheduledCheckpoint(53.1, -7.0, mile=10, segment_miles=5, eta=LEAVING),
+    ]
+    gusty = Conditions(wind_mph=38.26, rain_in_per_hr=0.31234, snow_in_per_hr=0)
+    later = recommend([plan_route(route, assess(checkpoints, [gusty, None], 20_000))])
+    plan = recommend([plan_route(route, assess(checkpoints, [None, None], 20_000))])
+    plan = TripPlan(plan.routes, plan.reason, plan.safe_to_travel, timeline=[plan, later])
+
+    timeline = TripPlanSerializer(plan).data["timeline"]
+
+    assert len(timeline) == 2
+    moment = timeline[1]["routes"][0]
+    assert moment["id"] == "route-1"
+    assert moment["conditions"] == [[2, 2, 2, 0, 38.3, 0.312, 0.0], None]
+    assert timeline[0]["routes"][0]["conditions"] == [None, None]

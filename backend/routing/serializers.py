@@ -132,8 +132,62 @@ class PlannedRouteSerializer(serializers.Serializer[Any]):
     checkpoints = PlannedCheckpointSerializer(many=True)
 
 
+CONDITION_ROW_SCHEMA = {
+    "type": "array",
+    "nullable": True,
+    "description": (
+        "[risk, wind risk, rain risk, snow risk, wind mph, rain in/hr, snow in/hr], "
+        "or null when there's no forecast for that time"
+    ),
+    "items": {"type": "number"},
+    "minItems": 7,
+    "maxItems": 7,
+}
+
+
+class TimelineRouteSerializer(serializers.Serializer[Any]):
+    """One route at one departure hour, with the checkpoints packed into short rows."""
+
+    id = serializers.CharField(source="route.id")
+    score = RouteScoreSerializer()
+    unknown_weather_miles = serializers.FloatField(source="unknown_miles")
+    conditions = serializers.SerializerMethodField()
+
+    @extend_schema_field({"type": "array", "items": CONDITION_ROW_SCHEMA})
+    def get_conditions(self, planned: Any) -> list[list[float] | None]:
+        rows: list[list[float] | None] = []
+        for checkpoint in planned.checkpoints:
+            weather, risk = checkpoint.weather, checkpoint.risk
+            if weather is None or risk is None:
+                rows.append(None)
+                continue
+            rows.append(
+                [
+                    risk.level.value,
+                    risk.wind.value,
+                    risk.rain.value,
+                    risk.snow.value,
+                    round(weather.wind_mph, 1),
+                    round(weather.rain_in_per_hr, 3),
+                    round(weather.snow_in_per_hr, 2),
+                ]
+            )
+        return rows
+
+
+class TimelineEntrySerializer(serializers.Serializer[Any]):
+    recommended_route_id = serializers.CharField(source="recommended.route.id")
+    reason = serializers.CharField()
+    safe_to_travel = serializers.BooleanField()
+    routes = TimelineRouteSerializer(many=True, help_text="Safest first at this hour")
+
+
 class TripPlanSerializer(serializers.Serializer[Any]):
     recommended_route_id = serializers.CharField(source="recommended.route.id")
     reason = serializers.CharField()
     safe_to_travel = serializers.BooleanField()
     routes = PlannedRouteSerializer(many=True)
+    timeline = TimelineEntrySerializer(
+        many=True,
+        help_text="The same trip leaving 0, 1, 2 ... 48 hours later; the index is the hours.",
+    )
