@@ -88,6 +88,16 @@ describe('TripPlanner', () => {
     expect(planCall()).toMatchObject({ weight_lb: 36000, spacing_miles: 10 })
   })
 
+  it('plans the trip when Enter is pressed', async () => {
+    fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')])))
+    renderWithTheme(<TripPlanner />)
+
+    await pickTrip()
+    await userEvent.type(screen.getByLabelText('Truck weight'), '{Enter}')
+
+    expect(await screen.findByText('1 route found, safest first')).toBeInTheDocument()
+  })
+
   it('warns when every route has No Travel weather', async () => {
     fakeApi(() => Response.json(tripPlan([plannedRoute('route-1')], { safe_to_travel: false })))
     renderWithTheme(<TripPlanner />)
