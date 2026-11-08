@@ -23,7 +23,9 @@ interface RiskLegendProps {
 
 /** What the colours mean: advice for the overall view, real units for wind, rain, snow. */
 function RiskLegend({ layer = 'overall', bottom = 24, compact = false }: RiskLegendProps) {
-  const [open, setOpen] = useState(!compact)
+  // Always open on a big screen, even if the window started out phone-sized.
+  const [opened, setOpen] = useState(false)
+  const open = !compact || opened
   const place = {
     position: 'absolute',
     left: 12,

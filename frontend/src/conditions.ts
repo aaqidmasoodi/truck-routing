@@ -1,23 +1,63 @@
 import type { CheckpointRisk, PlannedCheckpoint, RiskLevel, Weather } from './api/client'
 
 /**
- * The five risk levels in plain words, in traffic-light colours drivers already know.
+ * The five risk levels in plain words, in calm traffic-light colours drivers already know.
  * The API keeps the brief's names (Low to No Travel); the page shows these.
+ *
+ * Each level has a solid `colour` for lines and markers on the map, and a soft tinted
+ * `container` with darker `onContainer` text in the same hue for chips and banners.
  */
 export interface Condition {
   label: string
   advice: string
   colour: string
-  /** Text colour that reads on top of `colour`. */
+  /** Icon colour that reads on top of `colour`. */
   text: string
+  container: string
+  onContainer: string
 }
 
 export const CONDITIONS: readonly Condition[] = [
-  { label: 'Clear', advice: 'Normal driving', colour: '#2e7d32', text: '#ffffff' },
-  { label: 'Caution', advice: 'Stay alert', colour: '#f9a825', text: '#1b1b1f' },
-  { label: 'Slow down', advice: 'Reduce speed', colour: '#ef6c00', text: '#1b1b1f' },
-  { label: 'Dangerous', advice: 'Avoid if you can', colour: '#d32f2f', text: '#ffffff' },
-  { label: 'Do not drive', advice: 'Wait it out', colour: '#212121', text: '#ffffff' },
+  {
+    label: 'Clear',
+    advice: 'Normal driving',
+    colour: '#4c9a5b',
+    text: '#ffffff',
+    container: '#e3f1e6',
+    onContainer: '#1f5130',
+  },
+  {
+    label: 'Caution',
+    advice: 'Stay alert',
+    colour: '#d9a521',
+    text: '#3d2c00',
+    container: '#fbf1d2',
+    onContainer: '#6a4d00',
+  },
+  {
+    label: 'Slow down',
+    advice: 'Reduce speed',
+    colour: '#d9772f',
+    text: '#ffffff',
+    container: '#fbe6d6',
+    onContainer: '#7f3a0a',
+  },
+  {
+    label: 'Dangerous',
+    advice: 'Avoid if you can',
+    colour: '#c94a4a',
+    text: '#ffffff',
+    container: '#f8dede',
+    onContainer: '#7f1f1f',
+  },
+  {
+    label: 'Do not drive',
+    advice: 'Wait it out',
+    colour: '#3d3a40',
+    text: '#ffffff',
+    container: '#e4e1e6',
+    onContainer: '#1d1b20',
+  },
 ]
 
 export const NO_FORECAST: Condition = {
@@ -25,6 +65,8 @@ export const NO_FORECAST: Condition = {
   advice: 'Beyond the forecast',
   colour: '#9e9e9e',
   text: '#1b1b1f',
+  container: '#eeeeee',
+  onContainer: '#4a4a4a',
 }
 
 export function condition(level: RiskLevel | number | null | undefined): Condition {

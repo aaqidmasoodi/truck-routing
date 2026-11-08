@@ -75,7 +75,18 @@ function PlaceSearch({
 
   return (
     <Autocomplete
-      options={showingChoice ? [value] : ready ? result.places : offeringRecent ? suggestions : []}
+      // Only results for what's typed now, so Enter can't pick a place from an older search.
+      options={
+        showingChoice
+          ? [value]
+          : ready
+            ? result.query === query
+              ? result.places
+              : []
+            : offeringRecent
+              ? suggestions
+              : []
+      }
       groupBy={offeringRecent ? () => 'Recent' : undefined}
       openOnFocus={offeringRecent}
       value={value}

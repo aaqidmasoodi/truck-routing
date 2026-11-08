@@ -86,11 +86,13 @@ function Summary({ route, layer, top }: { route: PlannedRoute; layer: MapLayer; 
         top,
         zIndex: 1000, // above Leaflet's panes
         maxWidth: 'calc(100% - 24px)',
-        bgcolor: look.colour,
-        color: look.text,
+        bgcolor: look.container,
+        color: look.onContainer,
+        border: 1,
+        borderColor: look.colour,
         fontWeight: 500,
         boxShadow: 2,
-        '& .MuiChip-icon': { color: look.text },
+        '& .MuiChip-icon': { color: look.colour },
       }}
     />
   )
@@ -183,7 +185,8 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
             pathOptions={{ color: theme.palette.m3.tertiary, weight: 3, fill: false }}
           />
         ) : null}
-        {bounds ? <FitToRoutes bounds={bounds} inset={inset} /> : null}
+        {/* On a phone, keep the routes clear of the layer buttons above the sheet too. */}
+        {bounds ? <FitToRoutes bounds={bounds} inset={compact ? inset + 48 : inset} /> : null}
       </MapContainer>
       {routes.length > 0 ? (
         <ToggleButtonGroup
@@ -194,7 +197,8 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
           aria-label="Colour the route by"
           sx={{
             position: 'absolute',
-            top: 12,
+            // On a phone it sits at the bottom, above the sheet, leaving the top to the summary.
+            ...(compact ? { bottom: inset + 24, transition: 'bottom 250ms ease' } : { top: 12 }),
             right: 12,
             zIndex: 1000, // above Leaflet's panes
             bgcolor: 'm3.surfaceContainer',
@@ -207,7 +211,7 @@ function RouteMap({ routes, selectedId, onSelect, inset = 0, compact = false }: 
           <ToggleButton value="snow">Snow</ToggleButton>
         </ToggleButtonGroup>
       ) : null}
-      {selected ? <Summary route={selected} layer={layer} top={compact ? 60 : 12} /> : null}
+      {selected ? <Summary route={selected} layer={layer} top={12} /> : null}
       {routes.length > 0 ? (
         <RiskLegend layer={layer} bottom={inset + 24} compact={compact} />
       ) : (

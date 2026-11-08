@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { checkpoint, SEVERE } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
 import RiskStrip from './RiskStrip'
+import { CONDITIONS } from '../conditions'
 
 const checkpoints = [
   { ...checkpoint(0, '2026-11-09T08:00:00Z'), segment_miles: 5 },
@@ -16,7 +17,7 @@ describe('RiskStrip', () => {
 
     const stretches = screen.getAllByTestId('risk-stretch')
     expect(stretches.map((s) => getComputedStyle(s).flexGrow)).toEqual(['5', '10', '5'])
-    expect(stretches[1]).toHaveStyle({ backgroundColor: '#d32f2f' })
+    expect(stretches[1]).toHaveStyle({ backgroundColor: CONDITIONS[3]!.colour })
   })
 
   it('describes the risk for screen readers', () => {

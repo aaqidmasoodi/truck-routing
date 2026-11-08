@@ -5,6 +5,9 @@ import type { CheckpointRisk } from '../api/client'
 import { checkpoint, LOW, plannedRoute, SEVERE } from '../test/fixtures'
 import { renderWithTheme } from '../test/render'
 import RouteMap from './RouteMap'
+import { CONDITIONS, NO_FORECAST } from '../conditions'
+import { ThemeProvider } from '@mui/material/styles'
+import theme from '../theme'
 
 const windy: CheckpointRisk = {
   level: SEVERE,
@@ -79,8 +82,9 @@ describe('RouteMap', () => {
     )
 
     // Clear, then Dangerous, then no forecast: the line on top and the glow underneath.
-    expect(strokes(container, '5')).toEqual(['#2e7d32', '#d32f2f', '#9e9e9e'])
-    expect(strokes(container, '22')).toEqual(['#2e7d32', '#d32f2f', '#9e9e9e'])
+    const expected = [CONDITIONS[0]!.colour, CONDITIONS[3]!.colour, NO_FORECAST.colour]
+    expect(strokes(container, '5')).toEqual(expected)
+    expect(strokes(container, '22')).toEqual(expected)
   })
 
   it('puts a marker only where conditions are not clear', () => {
@@ -136,7 +140,11 @@ describe('RouteMap legend', () => {
 
     expect(screen.getByRole('list', { name: 'Rain key' })).toHaveTextContent('Over 1 in/h')
     // The windy stretch is dry, so on the rain layer it's clear and has no marker.
-    expect(strokes(container, '5')).toEqual(['#2e7d32', '#2e7d32', '#9e9e9e'])
+    expect(strokes(container, '5')).toEqual([
+      CONDITIONS[0]!.colour,
+      CONDITIONS[0]!.colour,
+      NO_FORECAST.colour,
+    ])
     expect(markers(container)).toHaveLength(0)
   })
 })
@@ -160,5 +168,22 @@ describe('RouteMap key on a phone', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Hide map key' }))
     expect(screen.getByRole('button', { name: 'Show map key' })).toBeInTheDocument()
+  })
+})
+
+describe('RouteMap key when the screen grows', () => {
+  it('opens fully once the screen is no longer a phone', () => {
+    const view = renderWithTheme(
+      <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} compact />,
+    )
+    expect(screen.queryByRole('list', { name: 'Driving conditions key' })).not.toBeInTheDocument()
+
+    view.rerender(
+      <ThemeProvider theme={theme}>
+        <RouteMap routes={routes} selectedId="route-1" onSelect={() => {}} />
+      </ThemeProvider>,
+    )
+
+    expect(screen.getByRole('list', { name: 'Driving conditions key' })).toBeInTheDocument()
   })
 })
